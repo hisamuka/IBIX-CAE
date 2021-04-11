@@ -1,7 +1,7 @@
 # VA-UMC
 Visual Analytics tool for a collaboration with the UMC (Netherlands).
 
-## installation
+## Installation
 
 ##### Required python packages
 ```
@@ -16,7 +16,7 @@ pip install tensorflow-gpu
 To install TensorFlow FPU on Ubuntu 20.04: https://towardsdatascience.com/installing-tensorflow-gpu-in-ubuntu-20-04-4ee3ca4cb75d
 
 
-## datasets
+## Datasets
 Datasets used for testing and evaluation: folder `datasets`.
 
 #### 1. CamCan_axial
@@ -36,7 +36,20 @@ We considered the following steps to generate the 2D axial slices:
 - `./datasets/CamCan_axial/train_T2.csv`: Training set with the first 90% T2 images (pathnames)
 - `./datasets/CamCan_axial/test_T2.csv`: Test set with the remaining 10% T2 images (pathnames)
 
-## unsupervised neural networks
+## Unsupervised Neural Networks
+##### Training an Autoencoder
+###### Usage: `python unsup-neural-net/generic-autoencoder/train_autoencoder.py -h`
+###### Example:
+`python unsup-neural-net/generic-autoencoder/train_autoencoder.py datasets/CamCan_axial/T1 datasets/CamCan_axial/T2 models/autoencoder_t1_to_t2.h5 -b 32 -e 100`
+
+## Available Pretrained Models
+- `models/autoencoder_t1_to_t2.h5`
+    - Model to reconstruct T2 images (axial slices) from T1 ones;
+    - Trained with the sets:
+        - `datasets/CamCan_axial/T1`
+        - `datasets/CamCan_axial/T2`
+    - **Epochs**: 100, **batch size**: 32
+    - **Final loss (MAE)**: 0.0068
 
 
 ## visual analytics tool
