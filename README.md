@@ -30,7 +30,7 @@ We considered the following steps to generate the 2D axial slices:
 - `./datasets/CamCan_axial/train_T2.csv`: Training set with the first 90% T2 images (pathnames)
 - `./datasets/CamCan_axial/test_T2.csv`: Test set with the remaining 10% T2 images (pathnames)
 
-## va-umc/Unsupervised Neural Networks
+## Unsupervised Neural Networks
 #### Training an Autoencoder
 ###### Usage: `python va-umc/unsup-neural-net/generic-autoencoder/train_autoencoder.py -h`
 ###### Example:
