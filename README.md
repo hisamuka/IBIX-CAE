@@ -7,7 +7,7 @@ Visual Analytics tool for a collaboration with the UMC (Netherlands).
 ```pip install -r requirements.txt```
 
 ##### Optional
-To install TensorFlow FPU on Ubuntu 20.04: https://towardsdatascience.com/installing-tensorflow-gpu-in-ubuntu-20-04-4ee3ca4cb75d
+To install TensorFlow GPU on Ubuntu 20.04: https://towardsdatascience.com/installing-tensorflow-gpu-in-ubuntu-20-04-4ee3ca4cb75d
 
 
 ## Datasets
