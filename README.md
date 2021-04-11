@@ -37,15 +37,20 @@ We considered the following steps to generate the 2D axial slices:
 - `./datasets/CamCan_axial/test_T2.csv`: Test set with the remaining 10% T2 images (pathnames)
 
 ## Unsupervised Neural Networks
-##### Training an Autoencoder
+#### Training an Autoencoder
 ###### Usage: `python unsup-neural-net/generic-autoencoder/train_autoencoder.py -h`
 ###### Example:
 `python unsup-neural-net/generic-autoencoder/train_autoencoder.py datasets/CamCan_axial/T1 datasets/CamCan_axial/T2 models/autoencoder_t1_to_t2.h5 -b 32 -e 100`
 
-##### Reconstruct an Image
+#### Reconstruct an Image
 ###### Usage: `python unsup-neural-net/generic-autoencoder/reconstruct_image.py -h`
 ###### Example:
 `python unsup-neural-net/generic-autoencoder/reconstruct_image.py datasets/CamCan_axial/T1/000600_000001.png models/autoencoder_t1_to_t2.h5 out/000600_000001.png`
+
+#### Reconstruct an Image Set
+###### Usage: `python unsup-neural-net/generic-autoencoder/reconstruct_image_set.py -h`
+###### Example:
+`python unsup-neural-net/generic-autoencoder/reconstruct_image_set.py datasets/CamCan_axial/test_T1.csv models/autoencoder_t1_to_t2.h5 out`
 
 
 ## Available Pretrained Models

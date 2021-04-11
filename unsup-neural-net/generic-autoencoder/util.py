@@ -63,6 +63,35 @@ def normalize_image_set(X):
 
 
 def pad_by_downsampling_factors(X, downsampling_factors=(8, 8)):
+    '''
+    Adjust the image shape from a image data set (numpy array) with the
+    downsampling factors of the encoding layer from an autoencoder:
+    e.g., MaxPooling * MaxPooling * ...
+
+    The function pads zero in the right and bottom of the images.
+
+    Parameters
+    ----------
+    X: numpy array (n_imgs, ysize, ysize, n_channels)
+        A numpy array representing a 2D image set.
+    
+    downsampling_factors: tuple (downsampling_at_ysize, downsampling_at_xsize)
+        Tuple with the downsampling factors of the autoencoders.
+    
+
+    Returns
+    -------
+    numpy array (n_imgs, new_ysize, new_ysize, n_channels)
+        A new numpy array after padding zeros.
+
+    Raises
+    ------
+    Exception
+        If the input numpy array does not have 4 dimensions:
+        (n_imgs, new_ysize, new_ysize, n_channels).
+    '''
+
+
     # padding zeros around a numpy array X (n_imgs, ysize, xsize, n_channels)
     # according to the x- and y-downsampling factors of the network
     # downsampling_factors = (on y, on x)
@@ -71,7 +100,7 @@ def pad_by_downsampling_factors(X, downsampling_factors=(8, 8)):
         raise Exception(f'Invalid number of dimensions {X.ndim} != 4 ' \
                '(n_imgs, ysize, xsize, n_channels)')
     
-    n_imgs, ysize, xsize, n_channels = X.shape
+    _, ysize, xsize, _ = X.shape
     
     new_ysize = math.ceil(ysize / downsampling_factors[0]) * downsampling_factors[0]
     new_xsize = math.ceil(xsize / downsampling_factors[1]) * downsampling_factors[1]
@@ -88,12 +117,40 @@ def pad_by_downsampling_factors(X, downsampling_factors=(8, 8)):
 
 
 def pad_by_autoencoder_input(X, autoencoder):
-    # X.shape ==> (n_imgs, ysize, xsize, n_channels)
+    '''
+    Adjust the image shape from a image data set (numpy array) with the input
+    layer of an autoencoder by padding zeros.
+
+    The function pads zero in the right and bottom of the images.
+
+    Parameters
+    ----------
+    X: numpy array (n_imgs, ysize, ysize, n_channels)
+        A numpy array representing a 2D image set.
+    
+    autoencoder
+        An autoencoder model.
+    
+
+    Returns
+    -------
+    numpy array (n_imgs, new_ysize, new_ysize, n_channels)
+        A new numpy array after padding zeros.
+
+    Raises
+    ------
+    Exception
+        If the input numpy array does not have 4 dimensions:
+        (n_imgs, new_ysize, new_ysize, n_channels).
+
+    Exception
+        If the autoencoder's input layer does not have 4 dimensions.
+    '''
     if X.ndim != 4:
         raise Exception(f'Invalid number of dimensions {X.ndim} != 4 ' \
                '(n_imgs, ysize, xsize, n_channels)')
     
-    n_imgs, ysize, xsize, n_channels = X.shape
+    _, ysize, xsize, n_channels = X.shape
 
     # it returns something like: (None, ysize, xsize, n_channels)
     input_shape = autoencoder.layers[0].get_input_shape_at(0)
@@ -101,7 +158,6 @@ def pad_by_autoencoder_input(X, autoencoder):
     if len(input_shape) != 4:
         raise Exception(f'Invalid number of dimensions for autoencoder input: ' \
                         f'{len(input_shape)} != 4 (n_imgs, ysize, xsize, n_channels)')
-
 
     
     if (ysize, xsize, n_channels) == input_shape[1:]:
@@ -115,42 +171,6 @@ def pad_by_autoencoder_input(X, autoencoder):
         Xnew = np.pad(X, [(0, 0), (0, offset_y), (0, offset_x), (0, 0)])
         
         return Xnew
-
-        # Xnew = np.zeros((n_imgs, new_ysize, new_xsize, n_channels),
-        #                 dtype=X.dtype)
-        # Xnew[:, :ysize, :xsize, :] = X
-
-        # return Xnew
-
-
-def pad_by_autoencoder_input(X, autoencoder):
-    # X.shape ==> (n_imgs, ysize, xsize, n_channels)
-    if X.ndim != 4:
-        raise Exception(f'Invalid number of dimensions {X.ndim} != 4 ' \
-               '(n_imgs, ysize, xsize, n_channels)')
-    
-    n_imgs, ysize, xsize, n_channels = X.shape
-
-    # it returns something like: (None, ysize, xsize, n_channels)
-    input_shape = autoencoder.layers[0].get_input_shape_at(0)
-    
-    if len(input_shape) != 4:
-        raise Exception(f'Invalid number of dimensions for autoencoder input: ' \
-                        f'{len(input_shape)} != 4 (n_imgs, ysize, xsize, n_channels)')
-
-
-    
-    if (ysize, xsize, n_channels) == input_shape[1:]:
-        return X
-    else:
-        new_ysize, new_xsize = input_shape[1], input_shape[2]
-
-        Xnew = np.zeros((n_imgs, new_ysize, new_xsize, n_channels),
-                        dtype=X.dtype)
-        Xnew[:, :ysize, :xsize, :] = X
-
-        return Xnew
-
 
 
 def crop(X, shape):
