@@ -140,15 +140,14 @@ def main():
     if Xsource.shape != Xtarget.shape:
         raise(f'Source and target data with different shape: {Xsource.shape} != ' \
               f'{Xtarget.shape}')
-    original_shape = Xsource.shape
 
     # padding zeros to the original matrix in to avoid incompatibilities
     # between the image dimensions and the considered architecture (downsampling) 
     #
     # this downsampling_factor is based on the chosen architecture:
     # 3 maxpooling layers of (2, 2) during encoding
-    Xsource = util.padding_zeros(Xsource, downsampling_factor=(8, 8))
-    Xtarget = util.padding_zeros(Xtarget, downsampling_factor=(8, 8))
+    Xsource = util.pad_by_downsampling_factors(Xsource, downsampling_factors=(8, 8))
+    Xtarget = util.pad_by_downsampling_factors(Xtarget, downsampling_factors=(8, 8))
 
     autoencoder = train_autoencoder(Xsource, Xtarget, epochs=args.epochs, batch_size=args.batch_size)
 
