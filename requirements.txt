@@ -1,6 +1,6 @@
 keras
 matplotlib
-napari
+napari[all]
 numpy
 scikit-image
 tensorflow
