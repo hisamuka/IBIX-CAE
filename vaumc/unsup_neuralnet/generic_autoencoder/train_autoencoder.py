@@ -1,11 +1,9 @@
 import argparse
 import os
-import pdb
 import sys
 
 from keras.layers import Input, Conv2D, MaxPooling2D, UpSampling2D
 from keras.models import Model
-import numpy as np
 
 
 import util
@@ -117,7 +115,7 @@ def train_autoencoder(Xsource, Xtarget, epochs=500, batch_size=1):
 
 
 def main():
-    parser = build_argparse()
+    a
     args = parser.parse_args()
     print_args(args)
     validate_args(args)
