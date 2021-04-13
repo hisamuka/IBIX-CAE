@@ -43,40 +43,52 @@ def validate_args(args):
         os.makedirs(parent_dir)
 
 
+
+def reconstruct_image(img, autoencoder, verbose=False):
+    if img.ndim not in [2, 3]:
+        raise Exception(f'Invalid number of imagem dimensions: {img.ndim}. ' \
+                         'Expected: 2 or 3')
+    
+    ysize, xsize = img.shape[0], img.shape[1]
+    n_channels = img.shape[2] if img.ndim == 3 else 1
+    norm_value = util.normalization_value(img)  # e.g., 255 for 8-bit images
+
+    X = img.reshape(1, ysize, xsize, n_channels)
+    X = util.normalize_image_set(X)
+    X = util.pad_by_autoencoder_input(X, autoencoder)
+
+    Xout = autoencoder.predict(X) # shape (1, ysize, xsize, n_channels)
+    Xout = util.crop(Xout, shape=(ysize, xsize))
+
+    if n_channels == 1:
+        img_out = Xout.reshape((ysize, xsize))
+    else:
+        img_out = Xout.reshape((ysize, xsize, n_channels))
+    
+    img_out *= norm_value
+    img_out = img_out.astype(np.int32)
+
+    return img_out
+
+
 def main():
     parser = build_argparse()
     args = parser.parse_args()
     print_args(args)
     validate_args(args)
 
+
     print('- Loading Input Image')
-    img_paths = [args.image_path]
-    X = util.read_image_list(img_paths)  # (1, ysize, xsize, n_channels)
-    norm_value = util.normalization_value(X[0])  # e.g., 255 for 8-bit images
-    X = util.normalize_image_set(X)
+    img = io.imread(args.image_path)
 
     print('- Loading AutoEncoder2D')
     autoencoder = load_model(args.autoencoder)
 
-    print('- Padding according to Models\'s Input Shape')
-    ysize, xsize, n_channels = X.shape[1:]
-    X = util.pad_by_autoencoder_input(X, autoencoder)
-
     print('- Reconstructing Image')
-    Xout = autoencoder.predict(X) # shape (1, ysize, xsize, n_channels)
-    Xout = util.crop(Xout, shape=(ysize, xsize))
-
-    if n_channels == 1:
-        img = Xout.reshape((ysize, xsize))
-    else:
-        img = Xout.reshape((ysize, xsize, n_channels))
-    
-    print('- Normalizing Image: float to int')
-    img *= norm_value
-    img = img.astype(np.int32)
+    img_out = reconstruct_image(img, autoencoder)
 
     print('- Saving Reconstruct Image')
-    io.imsave(args.output_image_path, img)
+    io.imsave(args.output_image_path, img_out)
 
     print('\n- Done...')
 
