@@ -6,7 +6,7 @@ from keras.layers import Input, Conv2D, MaxPooling2D, UpSampling2D
 from keras.models import Model
 
 
-import util
+from . import util
 
 
 
@@ -115,7 +115,6 @@ def train_autoencoder(Xsource, Xtarget, epochs=500, batch_size=1):
 
 
 def main():
-    a
     args = parser.parse_args()
     print_args(args)
     validate_args(args)

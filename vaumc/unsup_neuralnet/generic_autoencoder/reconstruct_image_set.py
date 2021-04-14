@@ -7,7 +7,7 @@ from keras.models import load_model
 import numpy as np
 from skimage import io
 
-import util
+from . import util
 
 
 def build_argparse():
