@@ -58,4 +58,8 @@ We considered the following steps to generate the 2D axial slices:
 
 
 ## Visual Analytics Tools
+###### Usage: `python vaumc/va.py -h`
+###### Example:
+`python vaumc/va.py -i datasets/CamCan_axial/T1/000600_000001.png -m models/autoencoder_t1_to_t2.h5`
+
 
