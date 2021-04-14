@@ -2,6 +2,7 @@ import argparse
 from enum import Enum
 from typing import List
 
+from keras.models import load_model
 import matplotlib.pyplot as plt
 from magicgui import magicgui
 import napari
@@ -10,18 +11,20 @@ import numpy as np
 from pathlib import Path
 from skimage import io
 
-from keras.models import load_model
-from unsup_neuralnet.generic_autoencoder.reconstruct_image import reconstruct_image
+from reconstruction.mapping import forward_mapping
+from reconstruction.reconstruction import reconstruct_image
 
 
 class MappingDirection(Enum):
     INPUT_2_RECONSTRUCTION = 'input --> reconstruction'
     RECONSTRUCTION_2_INPUT = 'reconstruction --> input'
 
-class LayerKey(Enum):
+class LayerName(Enum):
     INPUT_IMAGE = 'input image'
     MARKERS = 'markers'
     RECONSTRUCTION = 'reconstruction'
+    FWD_INFLUENCE = 'forwarding influence'
+    REV_INFLUENCY = 'reverse influence'
 
 
 
@@ -71,16 +74,15 @@ def build_colors_from_colormap(cmap_name='Set3'):
 @magicgui(call_button='Load Input Image', filename={"filter": "Images (*.jpg *.jpeg *.png)"},
           clear_markers={'label': 'Clear the markers?'})
 def image_filepicker(filename=Path(), clear_markers=True) -> List[napari.types.LayerDataTuple]:
-    print("****************************")
     img = io.imread(filename)
-    out_layers = [(img, {'name': LayerKey.INPUT_IMAGE.value})]
+    out_layers = [(img, {'name': LayerName.INPUT_IMAGE.value})]
 
     rec_img_layer = reconstruct(img)
     out_layers.append(rec_img_layer)
 
     if clear_markers:
         blank = np.zeros(img.shape, dtype=np.int)
-        out_layers.append((blank, {'name': LayerKey.MARKERS.value}))
+        out_layers.append((blank, {'name': LayerName.MARKERS.value}))
 
     return out_layers
 
@@ -92,7 +94,7 @@ def reconstruct(img: ImageData) -> napari.types.LayerDataTuple:
 
     rec_img = reconstruct_image(img, model)
 
-    return (rec_img, {'name': LayerKey.RECONSTRUCTION.value}, 'image')
+    return (rec_img, {'name': LayerName.RECONSTRUCTION.value}, 'image')
 
 
 # If we use only the Enum as the type (without changing), a dropdown menu is also created but
@@ -101,16 +103,24 @@ def reconstruct(img: ImageData) -> napari.types.LayerDataTuple:
 @magicgui(call_button='Mapping',
           direction={'choices': [MappingDirection.INPUT_2_RECONSTRUCTION.value,
                                 MappingDirection.RECONSTRUCTION_2_INPUT.value]})
-def mapping(viewer: napari.Viewer, direction=MappingDirection.INPUT_2_RECONSTRUCTION.value):
-    img = viewer.layers[LayerKey.INPUT_IMAGE.value]
-    markers = viewer.layers[LayerKey.MARKERS.value]
-    rec_img = viewer.layers[LayerKey.RECONSTRUCTION.value]
+def mapping(viewer: napari.Viewer, direction=MappingDirection.INPUT_2_RECONSTRUCTION.value,
+            n_pertubations=100) -> napari.types.LayerDataTuple:
+    global model
+
+    img = viewer.layers[LayerName.INPUT_IMAGE.value].data
+    rec_img = viewer.layers[LayerName.RECONSTRUCTION.value].data
+    markers = viewer.layers[LayerName.MARKERS.value].data
 
     if direction == MappingDirection.INPUT_2_RECONSTRUCTION.value:
-        print('Forward Mapping')
+        print('***** Forward Mapping *****')
+        mean_influence = forward_mapping(img, rec_img, markers, n_pertubations, model, debug=False)
+        layer_name = LayerName.FWD_INFLUENCE.value
     else:
-        print('Reverse Mapping')
+        mean_influence = None
+        layer_name = LayerName.FWD_INFLUENCE.value
+        print('Reverse Mapping - NOT IMPLEMENTED YET')
 
+    return (mean_influence, {'name': layer_name, 'colormap': 'magma'}, 'image')
 
 
 
@@ -131,9 +141,9 @@ if __name__ == '__main__':
         viewer.window.add_dock_widget(reconstruct, area='left')
         viewer.window.add_dock_widget(mapping, area='left')
 
-        reconstruct(viewer.layers[LayerKey.INPUT_IMAGE.value].data)
+        reconstruct(viewer.layers[LayerName.INPUT_IMAGE.value].data)
 
         blank = np.zeros(input_image.shape, dtype=np.int)
         napari_colors = build_colors_from_colormap(cmap_name='Set1')
-        viewer.add_labels(blank, name=LayerKey.MARKERS.value, color=napari_colors)
+        viewer.add_labels(blank, name=LayerName.MARKERS.value, color=napari_colors)
 
