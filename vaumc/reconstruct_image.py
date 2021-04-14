@@ -5,7 +5,7 @@ import sys
 from keras.models import load_model
 from skimage import io
 
-from reconstruction import reconstruct_image
+from reconstruction.reconstruction import reconstruct_image
 
 
 def build_argparse():

@@ -3,12 +3,10 @@ import os
 import sys
 
 from keras.models import load_model
-import numpy as np
 from skimage import io
 
-from reconstruction import reconstruct_image_set
-import util
-
+from reconstruction.reconstruction import reconstruct_image_set
+from reconstruction import util
 
 
 def build_argparse():

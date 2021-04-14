@@ -32,19 +32,19 @@ We considered the following steps to generate the 2D axial slices:
 
 ## Unsupervised Neural Networks
 #### Training an Autoencoder
-###### Usage: `python va-umc/unsup-neural-net/generic-autoencoder/train_autoencoder.py -h`
+###### Usage: `python vaumc/train_generic_autoencoder.py -h`
 ###### Example:
-`python va-umc/unsup-neural-net/generic-autoencoder/train_autoencoder.py datasets/CamCan_axial/T1 datasets/CamCan_axial/T2 models/autoencoder_t1_to_t2.h5 -b 32 -e 100`
+`python vaumc/train_generic_autoencoder.py datasets/CamCan_axial/T1 datasets/CamCan_axial/T2 models/autoencoder_t1_to_t2.h5 -b 32 -e 100`
 
 #### Reconstruct an Image
-###### Usage: `python va-umc/unsup-neural-net/generic-autoencoder/reconstruct_image.py -h`
+###### Usage: `python vaumc/reconstruct_image.py -h`
 ###### Example:
-`python va-umc/unsup-neural-net/generic-autoencoder/reconstruct_image.py datasets/CamCan_axial/T1/000600_000001.png models/autoencoder_t1_to_t2.h5 out/000600_000001.png`
+`python vaumc/reconstruct_image.py datasets/CamCan_axial/T1/000600_000001.png models/autoencoder_t1_to_t2.h5 out/000600_000001.png`
 
 #### Reconstruct an Image Set
-###### Usage: `python va-umc/unsup-neural-net/generic-autoencoder/reconstruct_image_set.py -h`
+###### Usage: `python vaumc/reconstruct_image_set.py -h`
 ###### Example:
-`python va-umc/unsup-neural-net/generic-autoencoder/reconstruct_image_set.py datasets/CamCan_axial/test_T1.csv models/autoencoder_t1_to_t2.h5 out`
+`python vaumc/reconstruct_image_set.py datasets/CamCan_axial/test_T1.csv models/autoencoder_t1_to_t2.h5 out`
 
 
 ## Available Pretrained Models

@@ -5,8 +5,7 @@ import sys
 from keras.layers import Input, Conv2D, MaxPooling2D, UpSampling2D
 from keras.models import Model
 
-import util
-
+from reconstruction import util
 
 
 def build_argparse():
