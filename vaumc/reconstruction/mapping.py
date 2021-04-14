@@ -43,8 +43,8 @@ def forward_mapping(input_img, rec_img, markers, n_perturbations, model, save_au
     influences = numerator / denominator
     influences = influences.astype('int')
 
-    mean_influence = np.mean(influences, axis=0).astype('int')  # derivative idea
-    # mean_influence = np.mean(numerator, axis=0).astype('int')
+    # mean_influence = np.mean(influences, axis=0).astype('int')  # derivative idea
+    mean_influence = np.mean(numerator, axis=0).astype('int')
 
 
     if save_aux_images:

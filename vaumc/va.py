@@ -103,7 +103,7 @@ def reconstruct(img: ImageData) -> napari.types.LayerDataTuple:
           direction={'choices': [MappingDirection.INPUT_2_RECONSTRUCTION.value,
                                 MappingDirection.RECONSTRUCTION_2_INPUT.value]},
           n_perturbations={'label': 'num. perturbations'},
-          save_aux_images={'label': 'save aux images'},)
+          save_aux_images={'label': 'save aux images', 'tooltip': 'Save auxiliary image into folder \'./out\''})
 def mapping(viewer: napari.Viewer, direction=MappingDirection.INPUT_2_RECONSTRUCTION.value,
             n_perturbations=100, save_aux_images=False) -> napari.types.LayerDataTuple:
     global model
