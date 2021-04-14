@@ -1,13 +1,14 @@
 import argparse
 import os
-import pdb
 import sys
 
 from keras.models import load_model
 import numpy as np
 from skimage import io
 
-from . import util
+from reconstruction import reconstruct_image_set
+import util
+
 
 
 def build_argparse():
@@ -58,28 +59,12 @@ def main():
     print('- Loading Image set')
     img_paths = util.read_image_entry(args.image_entry)
     X = util.read_image_list(img_paths)  # (n_imgs, ysize, xsize, n_channels)
-    norm_value = util.normalization_value(X[0])  # e.g., 255 for 8-bit images
-    X = util.normalize_image_set(X)
 
     print('- Loading AutoEncoder2D')
     autoencoder = load_model(args.autoencoder)
 
-    print('- Padding according to Models\'s Input Shape')
-    n_imgs, ysize, xsize, n_channels = X.shape
-    X = util.pad_by_autoencoder_input(X, autoencoder)
-
     print('- Reconstructing Image')
-    Xout = autoencoder.predict(X) # shape (1, ysize, xsize, n_channels)
-    Xout = util.crop(Xout, shape=(ysize, xsize))
-
-    if n_channels == 1:
-        Xout = Xout.reshape((n_imgs, ysize, xsize))
-    else:
-        Xout = Xout.reshape((n_imgs, ysize, xsize, n_channels))
-    
-    print('- Normalizing Images: float to int')
-    Xout *= norm_value
-    Xout = Xout.astype(np.int32)
+    Xout = reconstruct_image_set(X, autoencoder)
 
     print('- Saving Reconstruct Images')
     for i, img_path in enumerate(img_paths):
