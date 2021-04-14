@@ -71,20 +71,19 @@ def build_colors_from_colormap(cmap_name='Set3'):
 
 
 
-@magicgui(call_button='Load Input Image', filename={"filter": "Images (*.jpg *.jpeg *.png)"},
-          clear_markers={'label': 'Clear the markers?'})
-def image_filepicker(filename=Path(), clear_markers=True) -> List[napari.types.LayerDataTuple]:
+@magicgui(call_button='Load Input Image', filename={"filter": "Images (*.jpg *.jpeg *.png)"})
+def image_filepicker(viewer: napari.Viewer, filename=Path()):
+    global model
+
+    viewer.layers.clear()
+
     img = io.imread(filename)
-    out_layers = [(img, {'name': LayerName.INPUT_IMAGE.value})]
+    rec_img = reconstruct_image(img, model)
+    blank = np.zeros(img.shape, dtype=np.int)
 
-    rec_img_layer = reconstruct(img)
-    out_layers.append(rec_img_layer)
-
-    if clear_markers:
-        blank = np.zeros(img.shape, dtype=np.int)
-        out_layers.append((blank, {'name': LayerName.MARKERS.value}))
-
-    return out_layers
+    viewer.add_image(img, name=LayerName.INPUT_IMAGE.value)
+    viewer.add_image(rec_img, name=LayerName.RECONSTRUCTION.value)
+    viewer.add_labels(blank, name=LayerName.MARKERS.value, color=napari_colors)
 
 
 @magicgui(call_button='Reconstruct')
@@ -102,9 +101,11 @@ def reconstruct(img: ImageData) -> napari.types.LayerDataTuple:
 # Although it works that way, I preferred to use their option values.
 @magicgui(call_button='Mapping',
           direction={'choices': [MappingDirection.INPUT_2_RECONSTRUCTION.value,
-                                MappingDirection.RECONSTRUCTION_2_INPUT.value]})
+                                MappingDirection.RECONSTRUCTION_2_INPUT.value]},
+          n_perturbations={'label': 'num. perturbations'},
+          save_aux_images={'label': 'save aux images'},)
 def mapping(viewer: napari.Viewer, direction=MappingDirection.INPUT_2_RECONSTRUCTION.value,
-            n_pertubations=100) -> napari.types.LayerDataTuple:
+            n_perturbations=100, save_aux_images=False) -> napari.types.LayerDataTuple:
     global model
 
     img = viewer.layers[LayerName.INPUT_IMAGE.value].data
@@ -113,7 +114,7 @@ def mapping(viewer: napari.Viewer, direction=MappingDirection.INPUT_2_RECONSTRUC
 
     if direction == MappingDirection.INPUT_2_RECONSTRUCTION.value:
         print('***** Forward Mapping *****')
-        mean_influence = forward_mapping(img, rec_img, markers, n_pertubations, model, debug=False)
+        mean_influence = forward_mapping(img, rec_img, markers, n_perturbations, model, save_aux_images)
         layer_name = LayerName.FWD_INFLUENCE.value
     else:
         mean_influence = None
@@ -146,4 +147,3 @@ if __name__ == '__main__':
         blank = np.zeros(input_image.shape, dtype=np.int)
         napari_colors = build_colors_from_colormap(cmap_name='Set1')
         viewer.add_labels(blank, name=LayerName.MARKERS.value, color=napari_colors)
-
