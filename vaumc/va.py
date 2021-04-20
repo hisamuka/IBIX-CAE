@@ -23,7 +23,7 @@ class MappingDirection(Enum):
 
 class LayerName(Enum):
     INPUT_IMAGE = 'input image'
-    MARKERS = 'markers'
+    INPUT_MARKERS = 'input markers'
     RECONSTRUCTION = 'reconstruction'
     FWD_INFLUENCE = 'forwarding influence'
     REV_INFLUENCY = 'reverse influence'
@@ -85,7 +85,7 @@ def image_filepicker(viewer: napari.Viewer, filename=Path()):
 
     viewer.add_image(img, name=LayerName.INPUT_IMAGE.value)
     viewer.add_image(rec_img, name=LayerName.RECONSTRUCTION.value)
-    viewer.add_labels(blank, name=LayerName.MARKERS.value, color=napari_colors)
+    viewer.add_labels(blank, name=LayerName.INPUT_MARKERS.value, color=napari_colors)
 
 
 @magicgui(call_button='Reconstruct')
@@ -101,30 +101,26 @@ def reconstruct(img: ImageData) -> napari.types.LayerDataTuple:
 # If we use only the Enum as the type (without changing), a dropdown menu is also created but
 # the options are the enum names instead of their values: INPUT_2_RECONSTRUCTION and INPUT_2_RECONSTRUCTION
 # Although it works that way, I preferred to use their option values.
-@magicgui(call_button='Mapping',
-          direction={'choices': [MappingDirection.INPUT_2_RECONSTRUCTION.value,
-                                MappingDirection.RECONSTRUCTION_2_INPUT.value]},
+@magicgui(call_button='Forwarding Mapping',
           n_perturbations={'label': 'num. perturbations'},
           save_aux_images={'label': 'save aux images', 'tooltip': 'Save auxiliary image into folder \'./out\''})
-def mapping(viewer: napari.Viewer, direction=MappingDirection.INPUT_2_RECONSTRUCTION.value,
-            n_perturbations=100, save_aux_images=False) -> napari.types.LayerDataTuple:
+def mapping(viewer: napari.Viewer, n_perturbations=100, save_aux_images=False) -> napari.types.LayerDataTuple:
     global model
 
     img = viewer.layers[LayerName.INPUT_IMAGE.value].data
     rec_img = viewer.layers[LayerName.RECONSTRUCTION.value].data
-    markers = viewer.layers[LayerName.MARKERS.value].data
+    markers = viewer.layers[LayerName.INPUT_MARKERS.value].data
 
-    if direction == MappingDirection.INPUT_2_RECONSTRUCTION.value:
-        print('***** Forward Mapping *****')
-        mean_influence = forward_mapping(img, rec_img, markers, n_perturbations, model, save_aux_images)
-        layer_name = LayerName.FWD_INFLUENCE.value
-    else:
-        mean_influence = None
-        layer_name = LayerName.FWD_INFLUENCE.value
-        print('Reverse Mapping - NOT IMPLEMENTED YET')
+    print('***** Forward Mapping *****')
+    mean_influence = forward_mapping(img, rec_img, markers, n_perturbations, model, save_aux_images)
+    layer_name = LayerName.FWD_INFLUENCE.value
 
     return (mean_influence, {'name': layer_name, 'colormap': 'magma'}, 'image')
 
+
+
+def reorganize_layer_list(viewer: napari.Viewer):
+    print('oioi')
 
 
 if __name__ == '__main__':
@@ -138,6 +134,10 @@ if __name__ == '__main__':
         input_image = io.imread(args.input_image)
         viewer.add_image(input_image, name='input image')
 
+        blank = np.zeros(input_image.shape, dtype=np.int)
+        napari_colors = build_colors_from_colormap(cmap_name='Set1')
+        viewer.add_labels(blank, name=LayerName.INPUT_MARKERS.value, color=napari_colors)
+
         model = load_model(args.model)
 
         viewer.window.add_dock_widget(image_filepicker, area='left')
@@ -146,6 +146,3 @@ if __name__ == '__main__':
 
         reconstruct(viewer.layers[LayerName.INPUT_IMAGE.value].data)
 
-        blank = np.zeros(input_image.shape, dtype=np.int)
-        napari_colors = build_colors_from_colormap(cmap_name='Set1')
-        viewer.add_labels(blank, name=LayerName.MARKERS.value, color=napari_colors)
