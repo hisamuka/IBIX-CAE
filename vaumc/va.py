@@ -11,6 +11,8 @@ import numpy as np
 from pathlib import Path
 from skimage import io
 
+from qtpy import QtWidgets
+
 from reconstruction.mapping import forward_mapping
 from reconstruction.reconstruction import reconstruct_image
 
@@ -140,7 +142,7 @@ if __name__ == '__main__':
 
         viewer.window.add_dock_widget(image_filepicker, area='left')
         viewer.window.add_dock_widget(reconstruct, area='left')
-        viewer.window.add_dock_widget(mapping, area='left')
+        viewer.window.add_dock_widget([QtWidgets.QLabel('Mapping'), mapping.native], area='left')
 
         reconstruct(viewer.layers[LayerName.INPUT_IMAGE.value].data)
 
