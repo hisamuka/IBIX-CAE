@@ -113,9 +113,9 @@ def mapping(viewer: napari.Viewer, n_perturbations=100, save_aux_images=False) -
 
     print('***** Forward Mapping *****')
     mean_influence = forward_mapping(img, rec_img, markers, n_perturbations, model, save_aux_images)
-    layer_name = LayerName.FWD_INFLUENCE.value
 
-    return (mean_influence, {'name': layer_name, 'colormap': 'magma'}, 'image')
+    return (mean_influence, {'name': LayerName.FWD_INFLUENCE.value,
+                             'colormap': 'magma', 'blending': 'additive'}, 'image')
 
 
 
