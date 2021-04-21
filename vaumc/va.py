@@ -15,6 +15,7 @@ from qtpy import QtWidgets
 
 from reconstruction.mapping import forward_mapping
 from reconstruction.reconstruction import reconstruct_image
+from reconstruction import util
 
 
 class MappingDirection(Enum):
@@ -24,6 +25,7 @@ class MappingDirection(Enum):
 class LayerName(Enum):
     INPUT_IMAGE = 'input image'
     INPUT_MARKERS = 'input markers'
+    OUTPUT_MARKERS = 'output markers'
     RECONSTRUCTION = 'reconstruction'
     FWD_INFLUENCE = 'forwarding influence'
     REV_INFLUENCY = 'reverse influence'
@@ -98,13 +100,10 @@ def reconstruct(img: ImageData) -> napari.types.LayerDataTuple:
     return (rec_img, {'name': LayerName.RECONSTRUCTION.value}, 'image')
 
 
-# If we use only the Enum as the type (without changing), a dropdown menu is also created but
-# the options are the enum names instead of their values: INPUT_2_RECONSTRUCTION and INPUT_2_RECONSTRUCTION
-# Although it works that way, I preferred to use their option values.
 @magicgui(call_button='Forwarding Mapping',
           n_perturbations={'label': 'num. perturbations'},
           save_aux_images={'label': 'save aux images', 'tooltip': 'Save auxiliary image into folder \'./out\''})
-def mapping(viewer: napari.Viewer, n_perturbations=100, save_aux_images=False) -> napari.types.LayerDataTuple:
+def forwarding_mapping(viewer: napari.Viewer, n_perturbations=100, save_aux_images=False) -> napari.types.LayerDataTuple:
     global model
 
     img = viewer.layers[LayerName.INPUT_IMAGE.value].data
@@ -114,13 +113,31 @@ def mapping(viewer: napari.Viewer, n_perturbations=100, save_aux_images=False) -
     print('***** Forward Mapping *****')
     mean_influence = forward_mapping(img, rec_img, markers, n_perturbations, model, save_aux_images)
 
+    util.mix_image_heatmap(img, mean_influence, 'magma')
+
     return (mean_influence, {'name': LayerName.FWD_INFLUENCE.value,
                              'colormap': 'magma', 'blending': 'additive'}, 'image')
 
 
 
-def reorganize_layer_list(viewer: napari.Viewer):
-    print('oioi')
+
+@magicgui(call_button='Inverse Mapping',
+          n_perturbations={'label': 'num. perturbations'},
+          window_size={'label': 'window size'})
+def inverse_mapping(viewer: napari.Viewer, window_size=5, stride=2, n_perturbations=100) -> napari.types.LayerDataTuple:
+    global model
+
+    # img = viewer.layers[LayerName.INPUT_IMAGE.value].data
+    # rec_img = viewer.layers[LayerName.RECONSTRUCTION.value].data
+    # markers = viewer.layers[LayerName.INPUT_MARKERS.value].data
+
+    print('***** Inverse Mapping *****')
+    # mean_influence = forward_mapping(img, rec_img, markers, n_perturbations, model, save_aux_images)
+    #
+    # util.mix_image_heatmap(img, mean_influence, 'magma')
+    #
+    # return (mean_influence, {'name': LayerName.FWD_INFLUENCE.value,
+    #                          'colormap': 'magma', 'blending': 'additive'}, 'image')
 
 
 if __name__ == '__main__':
@@ -136,13 +153,15 @@ if __name__ == '__main__':
 
         blank = np.zeros(input_image.shape, dtype=np.int)
         napari_colors = build_colors_from_colormap(cmap_name='Set1')
-        viewer.add_labels(blank, name=LayerName.INPUT_MARKERS.value, color=napari_colors)
+        viewer.add_labels(blank.copy(), name=LayerName.INPUT_MARKERS.value, color=napari_colors)
 
         model = load_model(args.model)
 
         viewer.window.add_dock_widget(image_filepicker, area='left')
         viewer.window.add_dock_widget(reconstruct, area='left')
-        viewer.window.add_dock_widget([QtWidgets.QLabel('Mapping'), mapping.native], area='left')
+        viewer.window.add_dock_widget([QtWidgets.QLabel('Forwarding Mapping'), forwarding_mapping.native], area='left')
+        viewer.window.add_dock_widget([QtWidgets.QLabel('Inverse Mapping'), inverse_mapping.native], area='left')
 
         reconstruct(viewer.layers[LayerName.INPUT_IMAGE.value].data)
 
+        viewer.add_labels(blank.copy(), name=LayerName.OUTPUT_MARKERS.value, color=napari_colors)
