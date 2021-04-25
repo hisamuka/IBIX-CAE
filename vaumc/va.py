@@ -13,7 +13,7 @@ from skimage import io
 
 from qtpy import QtWidgets
 
-from reconstruction.mapping import forward_mapping
+from reconstruction import mapping
 from reconstruction.reconstruction import reconstruct_image
 from reconstruction import util
 
@@ -28,7 +28,7 @@ class LayerName(Enum):
     OUTPUT_MARKERS = 'output markers'
     RECONSTRUCTION = 'reconstruction'
     FWD_INFLUENCE = 'forwarding influence'
-    REV_INFLUENCY = 'reverse influence'
+    INV_INFLUENCE = 'inverse influence'
 
 
 
@@ -111,12 +111,12 @@ def forwarding_mapping(viewer: napari.Viewer, n_perturbations=100, save_aux_imag
     markers = viewer.layers[LayerName.INPUT_MARKERS.value].data
 
     print('***** Forward Mapping *****')
-    mean_influence = forward_mapping(img, rec_img, markers, n_perturbations, model, save_aux_images)
+    mean_influence = mapping.forwarding_mapping(img, rec_img, markers, n_perturbations, model, save_aux_images)
 
-    util.mix_image_heatmap(img, mean_influence, 'magma')
+    # util.mix_image_heatmap(img, mean_influence, 'magma')
 
     return (mean_influence, {'name': LayerName.FWD_INFLUENCE.value,
-                             'colormap': 'magma', 'blending': 'additive'}, 'image')
+                             'colormap': 'magma', 'blending': 'translucent'}, 'image')
 
 
 
@@ -124,20 +124,20 @@ def forwarding_mapping(viewer: napari.Viewer, n_perturbations=100, save_aux_imag
 @magicgui(call_button='Inverse Mapping',
           n_perturbations={'label': 'num. perturbations'},
           window_size={'label': 'window size'})
-def inverse_mapping(viewer: napari.Viewer, window_size=5, stride=2, n_perturbations=100) -> napari.types.LayerDataTuple:
+def inverse_mapping(viewer: napari.Viewer, window_size=10, stride=5, n_perturbations=100) -> napari.types.LayerDataTuple:
     global model
 
-    # img = viewer.layers[LayerName.INPUT_IMAGE.value].data
-    # rec_img = viewer.layers[LayerName.RECONSTRUCTION.value].data
-    # markers = viewer.layers[LayerName.INPUT_MARKERS.value].data
+
+    img = viewer.layers[LayerName.INPUT_IMAGE.value].data
+    rec_img = viewer.layers[LayerName.RECONSTRUCTION.value].data
+    markers = viewer.layers[LayerName.OUTPUT_MARKERS.value].data
 
     print('***** Inverse Mapping *****')
-    # mean_influence = forward_mapping(img, rec_img, markers, n_perturbations, model, save_aux_images)
-    #
-    # util.mix_image_heatmap(img, mean_influence, 'magma')
-    #
-    # return (mean_influence, {'name': LayerName.FWD_INFLUENCE.value,
-    #                          'colormap': 'magma', 'blending': 'additive'}, 'image')
+    mean_influence = mapping.inverse_mapping(img, rec_img, markers, window_size, stride, n_perturbations, model)
+
+    return (mean_influence, {'name': LayerName.INV_INFLUENCE.value,
+                             'colormap': 'magma'}, 'image')
+
 
 
 if __name__ == '__main__':

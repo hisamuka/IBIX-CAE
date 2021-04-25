@@ -5,7 +5,7 @@ from .reconstruction import reconstruct_image_set
 from .util import normalization_value
 
 
-def forward_mapping(input_img, rec_img, markers, n_perturbations, model, save_aux_images=False):
+def forwarding_mapping(input_img, rec_img, markers, n_perturbations, model, save_aux_images=False):
     roi = markers != 0
     print(roi.shape)
 
@@ -61,3 +61,31 @@ def forward_mapping(input_img, rec_img, markers, n_perturbations, model, save_au
             io.imsave(f'out/{i}_influence.png', influences[i].astype('uint8'))  # debugging
 
     return mean_influence
+
+
+def inverse_mapping(input_img, rec_img, markers, window_size, stride, n_perturbations, model):
+    markers_bin = markers != 0
+    mean_intensities = np.zeros(input_img.shape)
+    ysize, xsize = input_img.shape[:2]
+
+    n_windows = 0
+
+    for y in range(0, ysize, stride):
+        for x in range(0, xsize, stride):
+            n_windows += 1
+            print(f'** window = {n_windows}')
+            y0, y1 = y, min(y + window_size, ysize)
+            x0, x1 = x, min(x + window_size, xsize)
+
+            window_mask = np.zeros(input_img.shape, dtype=np.int)
+            window_mask[y0:y1, x0:x1] = 1
+
+            fwd_intensities = forwarding_mapping(input_img, rec_img, window_mask, n_perturbations, model, save_aux_images=False)
+            mean_value = np.mean(fwd_intensities[markers_bin])
+            mean_intensities[y0:y1+1, x0:x1+1] += mean_value
+            print(y0, y1, x0, x1, mean_value)
+
+    mean_intensities = mean_intensities.astype(np.int)
+
+    return mean_intensities
+
