@@ -1,5 +1,6 @@
 import numpy as np
 from skimage import io
+from skimage.segmentation import slic
 
 from .reconstruction import reconstruct_image_set
 from .util import normalization_value
@@ -60,7 +61,7 @@ def direct_mapping(input_img, rec_img, markers, n_perturbations, model, save_aux
 
 def inverse_mapping(input_img, rec_img, markers, window_size, stride, n_perturbations, model):
     markers_bin = markers != 0
-    mean_intensities = np.zeros(input_img.shape)
+    influence_map = np.zeros(input_img.shape)
     ysize, xsize = input_img.shape[:2]
 
     n_windows = 0
@@ -77,10 +78,34 @@ def inverse_mapping(input_img, rec_img, markers, window_size, stride, n_perturba
 
             direct_influence_map = direct_mapping(input_img, rec_img, window_mask, n_perturbations, model, save_aux_images=False)
             mean_value = np.mean(direct_influence_map[markers_bin])
-            mean_intensities[y0:y1+1, x0:x1+1] += mean_value
+            influence_map[y0:y1+1, x0:x1+1] += mean_value
             print(y0, y1, x0, x1, mean_value)
 
-    mean_intensities = mean_intensities.astype(np.int)
+    influence_map = influence_map.astype(np.int)
 
-    return mean_intensities
+    return influence_map
 
+
+def inverse_mapping_by_superpixels(input_img, rec_img, markers, n_superpixels, compactness, n_perturbations, model):
+    markers_bin = markers != 0
+
+    superpixels = slic(input_img, n_segments=n_superpixels, compactness=compactness)
+    influence_map = np.zeros(input_img.shape)
+
+    n_superpixels = superpixels.max()
+    print(f'n_superpixels = {n_superpixels}')
+
+    for label in range(1, n_superpixels + 1):
+            print(f'** label = {label}')
+
+            mask_bool = superpixels == label
+            mask = mask_bool.astype(np.int)
+
+            direct_influence_map = direct_mapping(input_img, rec_img, mask, n_perturbations, model, save_aux_images=False)
+            mean_value = np.mean(direct_influence_map[markers_bin])
+            influence_map[mask_bool] += mean_value
+            print(label, mean_value)
+
+    influence_map = influence_map.astype(np.int)
+
+    return influence_map, superpixels

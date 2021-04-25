@@ -29,6 +29,7 @@ class LayerName(Enum):
     RECONSTRUCTION = 'reconstruction'
     DIRECT_INFLUENCE = 'direct influence'
     INV_INFLUENCE = 'inverse influence'
+    INPUT_SUPERPIXELS = 'input superpixels'
 
 
 
@@ -125,7 +126,6 @@ def direct_mapping(viewer: napari.Viewer, n_perturbations=100, save_aux_images=F
 def inverse_mapping(viewer: napari.Viewer, window_size=10, stride=5, n_perturbations=100) -> napari.types.LayerDataTuple:
     global model
 
-
     img = viewer.layers[LayerName.INPUT_IMAGE.value].data
     rec_img = viewer.layers[LayerName.RECONSTRUCTION.value].data
     markers = viewer.layers[LayerName.OUTPUT_MARKERS.value].data
@@ -137,6 +137,32 @@ def inverse_mapping(viewer: napari.Viewer, window_size=10, stride=5, n_perturbat
                              'colormap': 'magma'}, 'image')
 
 
+@magicgui(call_button='Inverse Mapping',
+          n_superpixels={'label': 'num. superpixels'},
+          compactness={'label': 'compactness'},
+          n_perturbations={'label': 'num. perturbations'})
+def inverse_mapping_superpixels(viewer: napari.Viewer, n_superpixels=100, compactness=0.1, n_perturbations=100) -> List[napari.types.LayerDataTuple]:
+    global model
+
+    img = viewer.layers[LayerName.INPUT_IMAGE.value].data
+    rec_img = viewer.layers[LayerName.RECONSTRUCTION.value].data
+    markers = viewer.layers[LayerName.OUTPUT_MARKERS.value].data
+
+    print('***** Inverse Mapping by Superpixels *****')
+    influence_map, superpixels = mapping.inverse_mapping_by_superpixels(img, rec_img, markers, n_superpixels, compactness,
+                                                                        n_perturbations, model)
+
+    layers = [
+        (superpixels, {'name': LayerName.INPUT_SUPERPIXELS.value}, 'labels'),
+        (influence_map, {'name': LayerName.INV_INFLUENCE.value, 'colormap': 'magma'}, 'image')
+    ]
+
+    return layers
+
+
+def set_layer_contour(viewer, label_name, contour):
+    viewer.layers[label_name].contour = contour
+
 
 if __name__ == '__main__':
     parser = build_argparse()
@@ -147,19 +173,27 @@ if __name__ == '__main__':
         viewer = napari.Viewer()
 
         input_image = io.imread(args.input_image)
-        viewer.add_image(input_image, name='input image')
+
+
+        viewer.add_image(input_image, name=LayerName.INPUT_IMAGE.value)
 
         blank = np.zeros(input_image.shape, dtype=np.int)
         napari_colors = build_colors_from_colormap(cmap_name='Set1')
         viewer.add_labels(blank.copy(), name=LayerName.INPUT_MARKERS.value, color=napari_colors)
 
         model = load_model(args.model)
+        rec_img = reconstruct_image(input_image, model)
+        viewer.add_image(rec_img, name=LayerName.RECONSTRUCTION.value)
 
         viewer.window.add_dock_widget(image_filepicker, area='left')
-        viewer.window.add_dock_widget(reconstruct, area='left')
-        viewer.window.add_dock_widget([QtWidgets.QLabel('Forwarding Mapping'), direct_mapping.native], area='left')
+        # viewer.window.add_dock_widget(reconstruct, area='left')
+        viewer.window.add_dock_widget([QtWidgets.QLabel('Direct Mapping'), direct_mapping.native], area='left')
         viewer.window.add_dock_widget([QtWidgets.QLabel('Inverse Mapping'), inverse_mapping.native], area='left')
+        viewer.window.add_dock_widget([QtWidgets.QLabel('Inverse Mapping by Superpixels'), inverse_mapping_superpixels.native], area='left')
 
         reconstruct(viewer.layers[LayerName.INPUT_IMAGE.value].data)
 
         viewer.add_labels(blank.copy(), name=LayerName.OUTPUT_MARKERS.value, color=napari_colors)
+
+        # I couldn't set the label contour from the own LayerType
+        inverse_mapping_superpixels.called.connect(lambda event: set_layer_contour(viewer, LayerName.INPUT_SUPERPIXELS.value, 1))
