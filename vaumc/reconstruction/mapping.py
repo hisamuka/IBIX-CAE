@@ -5,15 +5,11 @@ from .reconstruction import reconstruct_image_set
 from .util import normalization_value
 
 
-def forwarding_mapping(input_img, rec_img, markers, n_perturbations, model, save_aux_images=False):
+def direct_mapping(input_img, rec_img, markers, n_perturbations, model, save_aux_images=False):
     roi = markers != 0
     print(roi.shape)
 
     max_range = int(normalization_value(input_img))  # e.g., 255 in 8-bit image
-
-    # step = (2 * max_range) / n_perturbations
-    # # the step may generate an extra value, so we only get the first `n_perturbations` numbers (float)
-    # pertubations = np.arange(-max_range, max_range + 1, step)[:n_perturbations]
 
     pertubations = np.arange(-n_perturbations, n_perturbations + 1, 2)[:n_perturbations]
     shape = tuple([n_perturbations] + list(input_img.shape))  # (n_perturbations, ysize, xsize)
@@ -43,8 +39,7 @@ def forwarding_mapping(input_img, rec_img, markers, n_perturbations, model, save
     influences = numerator / denominator
     influences = influences.astype('int')
 
-    # mean_influence = np.mean(influences, axis=0).astype('int')  # derivative idea
-    mean_influence = np.mean(numerator, axis=0).astype('int')
+    influence_map = np.mean(numerator, axis=0).astype('int')
 
 
     if save_aux_images:
@@ -60,7 +55,7 @@ def forwarding_mapping(input_img, rec_img, markers, n_perturbations, model, save
             io.imsave(f'out/{i}_denominator.png', denominator[i].astype('uint8'))  # debugging
             io.imsave(f'out/{i}_influence.png', influences[i].astype('uint8'))  # debugging
 
-    return mean_influence
+    return influence_map
 
 
 def inverse_mapping(input_img, rec_img, markers, window_size, stride, n_perturbations, model):
@@ -80,8 +75,8 @@ def inverse_mapping(input_img, rec_img, markers, window_size, stride, n_perturba
             window_mask = np.zeros(input_img.shape, dtype=np.int)
             window_mask[y0:y1, x0:x1] = 1
 
-            fwd_intensities = forwarding_mapping(input_img, rec_img, window_mask, n_perturbations, model, save_aux_images=False)
-            mean_value = np.mean(fwd_intensities[markers_bin])
+            direct_influence_map = direct_mapping(input_img, rec_img, window_mask, n_perturbations, model, save_aux_images=False)
+            mean_value = np.mean(direct_influence_map[markers_bin])
             mean_intensities[y0:y1+1, x0:x1+1] += mean_value
             print(y0, y1, x0, x1, mean_value)
 

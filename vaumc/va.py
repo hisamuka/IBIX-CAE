@@ -27,7 +27,7 @@ class LayerName(Enum):
     INPUT_MARKERS = 'input markers'
     OUTPUT_MARKERS = 'output markers'
     RECONSTRUCTION = 'reconstruction'
-    FWD_INFLUENCE = 'forwarding influence'
+    DIRECT_INFLUENCE = 'direct influence'
     INV_INFLUENCE = 'inverse influence'
 
 
@@ -103,7 +103,7 @@ def reconstruct(img: ImageData) -> napari.types.LayerDataTuple:
 @magicgui(call_button='Forwarding Mapping',
           n_perturbations={'label': 'num. perturbations'},
           save_aux_images={'label': 'save aux images', 'tooltip': 'Save auxiliary image into folder \'./out\''})
-def forwarding_mapping(viewer: napari.Viewer, n_perturbations=100, save_aux_images=False) -> napari.types.LayerDataTuple:
+def direct_mapping(viewer: napari.Viewer, n_perturbations=100, save_aux_images=False) -> napari.types.LayerDataTuple:
     global model
 
     img = viewer.layers[LayerName.INPUT_IMAGE.value].data
@@ -111,14 +111,12 @@ def forwarding_mapping(viewer: napari.Viewer, n_perturbations=100, save_aux_imag
     markers = viewer.layers[LayerName.INPUT_MARKERS.value].data
 
     print('***** Forward Mapping *****')
-    mean_influence = mapping.forwarding_mapping(img, rec_img, markers, n_perturbations, model, save_aux_images)
+    influence_map = mapping.direct_mapping(img, rec_img, markers, n_perturbations, model, save_aux_images)
 
-    # util.mix_image_heatmap(img, mean_influence, 'magma')
+    # util.mix_image_heatmap(img, influence_map, 'magma')
 
-    return (mean_influence, {'name': LayerName.FWD_INFLUENCE.value,
+    return (influence_map, {'name': LayerName.DIRECT_INFLUENCE.value,
                              'colormap': 'magma', 'blending': 'translucent'}, 'image')
-
-
 
 
 @magicgui(call_button='Inverse Mapping',
@@ -133,9 +131,9 @@ def inverse_mapping(viewer: napari.Viewer, window_size=10, stride=5, n_perturbat
     markers = viewer.layers[LayerName.OUTPUT_MARKERS.value].data
 
     print('***** Inverse Mapping *****')
-    mean_influence = mapping.inverse_mapping(img, rec_img, markers, window_size, stride, n_perturbations, model)
+    influence_map = mapping.inverse_mapping(img, rec_img, markers, window_size, stride, n_perturbations, model)
 
-    return (mean_influence, {'name': LayerName.INV_INFLUENCE.value,
+    return (influence_map, {'name': LayerName.INV_INFLUENCE.value,
                              'colormap': 'magma'}, 'image')
 
 
@@ -159,7 +157,7 @@ if __name__ == '__main__':
 
         viewer.window.add_dock_widget(image_filepicker, area='left')
         viewer.window.add_dock_widget(reconstruct, area='left')
-        viewer.window.add_dock_widget([QtWidgets.QLabel('Forwarding Mapping'), forwarding_mapping.native], area='left')
+        viewer.window.add_dock_widget([QtWidgets.QLabel('Forwarding Mapping'), direct_mapping.native], area='left')
         viewer.window.add_dock_widget([QtWidgets.QLabel('Inverse Mapping'), inverse_mapping.native], area='left')
 
         reconstruct(viewer.layers[LayerName.INPUT_IMAGE.value].data)
