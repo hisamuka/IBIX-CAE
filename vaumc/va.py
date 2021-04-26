@@ -27,8 +27,8 @@ class LayerName(Enum):
     INPUT_MARKERS = 'input markers'
     OUTPUT_MARKERS = 'output markers'
     RECONSTRUCTION = 'reconstruction'
-    DIRECT_INFLUENCE = 'direct influence'
-    INV_INFLUENCE = 'inverse influence'
+    FWD_INFLUENCE = 'forward influence'
+    BWD_INFLUENCE = 'backward influence'
     INPUT_SUPERPIXELS = 'input superpixels'
 
 
@@ -101,10 +101,10 @@ def reconstruct(img: ImageData) -> napari.types.LayerDataTuple:
     return (rec_img, {'name': LayerName.RECONSTRUCTION.value}, 'image')
 
 
-@magicgui(call_button='Forwarding Mapping',
+@magicgui(call_button='Forward Mapping',
           n_perturbations={'label': 'num. perturbations'},
           save_aux_images={'label': 'save aux images', 'tooltip': 'Save auxiliary image into folder \'./out\''})
-def direct_mapping(viewer: napari.Viewer, n_perturbations=100, save_aux_images=False) -> napari.types.LayerDataTuple:
+def forward_mapping(viewer: napari.Viewer, n_perturbations=100, save_aux_images=False) -> napari.types.LayerDataTuple:
     global model
 
     img = viewer.layers[LayerName.INPUT_IMAGE.value].data
@@ -112,18 +112,18 @@ def direct_mapping(viewer: napari.Viewer, n_perturbations=100, save_aux_images=F
     markers = viewer.layers[LayerName.INPUT_MARKERS.value].data
 
     print('***** Forward Mapping *****')
-    influence_map = mapping.direct_mapping(img, rec_img, markers, n_perturbations, model, save_aux_images)
+    influence_map = mapping.forward_mapping(img, rec_img, markers, n_perturbations, model, save_aux_images)
 
     # util.mix_image_heatmap(img, influence_map, 'magma')
 
-    return (influence_map, {'name': LayerName.DIRECT_INFLUENCE.value,
+    return (influence_map, {'name': LayerName.FWD_INFLUENCE.value,
                              'colormap': 'magma', 'blending': 'translucent'}, 'image')
 
 
-@magicgui(call_button='Inverse Mapping',
+@magicgui(call_button='Backward Mapping',
           n_perturbations={'label': 'num. perturbations'},
           window_size={'label': 'window size'})
-def inverse_mapping(viewer: napari.Viewer, window_size=10, stride=5, n_perturbations=100) -> napari.types.LayerDataTuple:
+def backward_mapping(viewer: napari.Viewer, window_size=10, stride=5, n_perturbations=100) -> napari.types.LayerDataTuple:
     global model
 
     img = viewer.layers[LayerName.INPUT_IMAGE.value].data
@@ -131,17 +131,17 @@ def inverse_mapping(viewer: napari.Viewer, window_size=10, stride=5, n_perturbat
     markers = viewer.layers[LayerName.OUTPUT_MARKERS.value].data
 
     print('***** Inverse Mapping *****')
-    influence_map = mapping.inverse_mapping(img, rec_img, markers, window_size, stride, n_perturbations, model)
+    influence_map = mapping.backward_mapping(img, rec_img, markers, window_size, stride, n_perturbations, model)
 
-    return (influence_map, {'name': LayerName.INV_INFLUENCE.value,
+    return (influence_map, {'name': LayerName.BWD_INFLUENCE.value,
                              'colormap': 'magma'}, 'image')
 
 
-@magicgui(call_button='Inverse Mapping',
+@magicgui(call_button='Backward Mapping',
           n_superpixels={'label': 'num. superpixels'},
           compactness={'label': 'compactness'},
           n_perturbations={'label': 'num. perturbations'})
-def inverse_mapping_superpixels(viewer: napari.Viewer, n_superpixels=100, compactness=0.1, n_perturbations=100) -> List[napari.types.LayerDataTuple]:
+def backward_mapping_superpixels(viewer: napari.Viewer, n_superpixels=100, compactness=0.1, n_perturbations=100) -> List[napari.types.LayerDataTuple]:
     global model
 
     img = viewer.layers[LayerName.INPUT_IMAGE.value].data
@@ -149,12 +149,12 @@ def inverse_mapping_superpixels(viewer: napari.Viewer, n_superpixels=100, compac
     markers = viewer.layers[LayerName.OUTPUT_MARKERS.value].data
 
     print('***** Inverse Mapping by Superpixels *****')
-    influence_map, superpixels = mapping.inverse_mapping_by_superpixels(img, rec_img, markers, n_superpixels, compactness,
-                                                                        n_perturbations, model)
+    influence_map, superpixels = mapping.backward_mapping_by_superpixels(img, rec_img, markers, n_superpixels, compactness,
+                                                                         n_perturbations, model)
 
     layers = [
         (superpixels, {'name': LayerName.INPUT_SUPERPIXELS.value}, 'labels'),
-        (influence_map, {'name': LayerName.INV_INFLUENCE.value, 'colormap': 'magma'}, 'image')
+        (influence_map, {'name': LayerName.BWD_INFLUENCE.value, 'colormap': 'magma'}, 'image')
     ]
 
     return layers
@@ -187,13 +187,13 @@ if __name__ == '__main__':
 
         viewer.window.add_dock_widget(image_filepicker, area='left')
         # viewer.window.add_dock_widget(reconstruct, area='left')
-        viewer.window.add_dock_widget([QtWidgets.QLabel('Direct Mapping'), direct_mapping.native], area='left')
-        viewer.window.add_dock_widget([QtWidgets.QLabel('Inverse Mapping'), inverse_mapping.native], area='left')
-        viewer.window.add_dock_widget([QtWidgets.QLabel('Inverse Mapping by Superpixels'), inverse_mapping_superpixels.native], area='left')
+        viewer.window.add_dock_widget([QtWidgets.QLabel('Forward Mapping'), forward_mapping.native], area='left')
+        viewer.window.add_dock_widget([QtWidgets.QLabel('Backward Mapping'), backward_mapping.native], area='left')
+        viewer.window.add_dock_widget([QtWidgets.QLabel('Backward Mapping by Superpixels'), backward_mapping_superpixels.native], area='left')
 
         reconstruct(viewer.layers[LayerName.INPUT_IMAGE.value].data)
 
         viewer.add_labels(blank.copy(), name=LayerName.OUTPUT_MARKERS.value, color=napari_colors)
 
         # I couldn't set the label contour from the own LayerType
-        inverse_mapping_superpixels.called.connect(lambda event: set_layer_contour(viewer, LayerName.INPUT_SUPERPIXELS.value, 1))
+        backward_mapping_superpixels.called.connect(lambda event: set_layer_contour(viewer, LayerName.INPUT_SUPERPIXELS.value, 1))

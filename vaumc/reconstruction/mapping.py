@@ -6,7 +6,7 @@ from .reconstruction import reconstruct_image_set
 from .util import normalization_value
 
 
-def direct_mapping(input_img, rec_img, markers, n_perturbations, model, save_aux_images=False):
+def forward_mapping(input_img, rec_img, markers, n_perturbations, model, save_aux_images=False):
     roi = markers != 0
     print(roi.shape)
 
@@ -59,7 +59,7 @@ def direct_mapping(input_img, rec_img, markers, n_perturbations, model, save_aux
     return influence_map
 
 
-def inverse_mapping(input_img, rec_img, markers, window_size, stride, n_perturbations, model):
+def backward_mapping(input_img, rec_img, markers, window_size, stride, n_perturbations, model):
     markers_bin = markers != 0
     influence_map = np.zeros(input_img.shape)
     ysize, xsize = input_img.shape[:2]
@@ -76,7 +76,7 @@ def inverse_mapping(input_img, rec_img, markers, window_size, stride, n_perturba
             window_mask = np.zeros(input_img.shape, dtype=np.int)
             window_mask[y0:y1, x0:x1] = 1
 
-            direct_influence_map = direct_mapping(input_img, rec_img, window_mask, n_perturbations, model, save_aux_images=False)
+            direct_influence_map = forward_mapping(input_img, rec_img, window_mask, n_perturbations, model, save_aux_images=False)
             mean_value = np.mean(direct_influence_map[markers_bin])
             influence_map[y0:y1+1, x0:x1+1] += mean_value
             print(y0, y1, x0, x1, mean_value)
@@ -86,7 +86,7 @@ def inverse_mapping(input_img, rec_img, markers, window_size, stride, n_perturba
     return influence_map
 
 
-def inverse_mapping_by_superpixels(input_img, rec_img, markers, n_superpixels, compactness, n_perturbations, model):
+def backward_mapping_by_superpixels(input_img, rec_img, markers, n_superpixels, compactness, n_perturbations, model):
     markers_bin = markers != 0
 
     superpixels = slic(input_img, n_segments=n_superpixels, compactness=compactness)
@@ -101,7 +101,7 @@ def inverse_mapping_by_superpixels(input_img, rec_img, markers, n_superpixels, c
             mask_bool = superpixels == label
             mask = mask_bool.astype(np.int)
 
-            direct_influence_map = direct_mapping(input_img, rec_img, mask, n_perturbations, model, save_aux_images=False)
+            direct_influence_map = forward_mapping(input_img, rec_img, mask, n_perturbations, model, save_aux_images=False)
             mean_value = np.mean(direct_influence_map[markers_bin])
             influence_map[mask_bool] += mean_value
             print(label, mean_value)
