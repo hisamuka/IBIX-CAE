@@ -5,3 +5,7 @@ numpy
 scikit-image
 tensorflow
 tensorflow-gpu
+torch
+pytorch-lightning
+lightning-bolts
+SimpleITK
