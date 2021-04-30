@@ -4,11 +4,11 @@ from skimage.segmentation import slic
 
 from .reconstruction import reconstruct_image_set
 from .util import normalization_value
+from joblib import Parallel, delayed
 
 
 def forward_mapping(input_img, rec_img, markers, n_perturbations, model, save_aux_images=False):
     roi = markers != 0
-    print(roi.shape)
 
     max_range = int(normalization_value(input_img))  # e.g., 255 in 8-bit image
 
@@ -20,6 +20,7 @@ def forward_mapping(input_img, rec_img, markers, n_perturbations, model, save_au
     Xpert = np.zeros(shape, dtype='int')
 
     for i, pert in enumerate(pertubations):
+        pert = pertubations[i]
         noise_img = np.array(input_img).astype('float')
         noise_img[roi] += pert
         noise_img[noise_img < 0] = 0
@@ -60,7 +61,7 @@ def forward_mapping(input_img, rec_img, markers, n_perturbations, model, save_au
 
 
 def backward_mapping(input_img, rec_img, markers, window_size, stride, n_perturbations, model):
-    markers_bin = markers != 0
+    markers_bool = markers != 0
     influence_map = np.zeros(input_img.shape)
     ysize, xsize = input_img.shape[:2]
 
@@ -77,7 +78,7 @@ def backward_mapping(input_img, rec_img, markers, window_size, stride, n_perturb
             window_mask[y0:y1, x0:x1] = 1
 
             direct_influence_map = forward_mapping(input_img, rec_img, window_mask, n_perturbations, model, save_aux_images=False)
-            mean_value = np.mean(direct_influence_map[markers_bin])
+            mean_value = np.mean(direct_influence_map[markers_bool])
             influence_map[y0:y1+1, x0:x1+1] += mean_value
             print(y0, y1, x0, x1, mean_value)
 
@@ -86,26 +87,34 @@ def backward_mapping(input_img, rec_img, markers, window_size, stride, n_perturb
     return influence_map
 
 
-def backward_mapping_by_superpixels(input_img, rec_img, markers, n_superpixels, compactness, n_perturbations, model):
-    markers_bin = markers != 0
+def _process_backward_mapping_for_single_superpixel(influence_maps, superpixels, label, input_img, rec_img,
+                                                    n_perturbations, model, markers_bool):
+    print(f'processing backward mapping - superpixel {label}')
+    mask_bool = superpixels == label
+    mask = mask_bool.astype(np.int)
 
+    direct_influence_map = forward_mapping(input_img, rec_img, mask, n_perturbations, model, save_aux_images=False)
+    mean_value = np.mean(direct_influence_map[markers_bool])
+
+    # [i] ==> influence map for the label i + 1
+    influence_map_label_ref = influence_maps[label - 1]
+    influence_map_label_ref[mask_bool] = mean_value
+
+
+def backward_mapping_by_superpixels(input_img, rec_img, markers, n_superpixels, compactness, n_perturbations, model):
+    markers_bool = markers != 0
     superpixels = slic(input_img, n_segments=n_superpixels, compactness=compactness)
-    influence_map = np.zeros(input_img.shape)
 
     n_superpixels = superpixels.max()
-    print(f'n_superpixels = {n_superpixels}')
+    influence_maps = np.zeros(tuple([n_superpixels] + list(input_img.shape)))
+    print(influence_maps.shape)
 
-    for label in range(1, n_superpixels + 1):
-            print(f'** label = {label}')
+    Parallel(n_jobs=-1, require='sharedmem')(delayed(_process_backward_mapping_for_single_superpixel)
+                                             (influence_maps, superpixels, label, input_img, rec_img,
+                                              n_perturbations, model, markers_bool)
+                                             for label in range(1, n_superpixels + 1))
 
-            mask_bool = superpixels == label
-            mask = mask_bool.astype(np.int)
-
-            direct_influence_map = forward_mapping(input_img, rec_img, mask, n_perturbations, model, save_aux_images=False)
-            mean_value = np.mean(direct_influence_map[markers_bin])
-            influence_map[mask_bool] += mean_value
-            print(label, mean_value)
-
-    influence_map = influence_map.astype(np.int)
+    influence_map = influence_maps.sum(axis=0).astype(np.int)
+    print(f'FINISHED - backward_mapping_by_superpixels')
 
     return influence_map, superpixels
