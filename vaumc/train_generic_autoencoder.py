@@ -5,6 +5,7 @@ import sys
 from keras.layers import Input, Conv2D, MaxPooling2D, UpSampling2D
 from keras.models import Model
 
+from vaumc.reconstruction.reconstruction import pad_by_downsampling_factors
 from reconstruction import util
 
 
@@ -107,7 +108,7 @@ def train_autoencoder(Xsource, Xtarget, epochs=500, batch_size=1):
                     batch_size=batch_size,
                     shuffle=True,
                     verbose=1,
-                    validation_data=(None))
+                    validation_data=None)
 
     return autoencoder
 
@@ -142,8 +143,8 @@ def main():
     #
     # this downsampling_factor is based on the chosen architecture:
     # 3 maxpooling layers of (2, 2) during encoding
-    Xsource = util.pad_by_downsampling_factors(Xsource, downsampling_factors=(8, 8))
-    Xtarget = util.pad_by_downsampling_factors(Xtarget, downsampling_factors=(8, 8))
+    Xsource = pad_by_downsampling_factors(Xsource, downsampling_factors=(8, 8))
+    Xtarget = pad_by_downsampling_factors(Xtarget, downsampling_factors=(8, 8))
 
     autoencoder = train_autoencoder(Xsource, Xtarget, epochs=args.epochs, batch_size=args.batch_size)
 
