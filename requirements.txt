@@ -9,3 +9,5 @@ torch
 pytorch-lightning
 lightning-bolts
 SimpleITK
+torchvision
+pytorch-msssim

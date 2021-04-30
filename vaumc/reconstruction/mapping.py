@@ -2,7 +2,7 @@ import numpy as np
 from skimage import io
 from skimage.segmentation import slic
 
-from .reconstruction import reconstruct_image_set
+from pytorch_model import reconstruct_image_set
 from .util import normalization_value
 
 
@@ -17,7 +17,7 @@ def forward_mapping(input_img, rec_img, markers, n_perturbations, model, save_au
 
     # creates a numpy array with `n_pertubation` repetitions of the input_image
     # X.shape ==> (n_pertubation, input_image.shape)
-    Xpert = np.zeros(shape, dtype='int')
+    Xpert = np.zeros(shape, dtype=input_img.dtype)
 
     for i, pert in enumerate(pertubations):
         noise_img = np.array(input_img).astype('float')
@@ -29,15 +29,17 @@ def forward_mapping(input_img, rec_img, markers, n_perturbations, model, save_au
 
     Xpert_rec = reconstruct_image_set(Xpert, model)
 
-
     reps = tuple([n_perturbations] + [1] * input_img.ndim)
     Xinput = np.tile(input_img, reps=reps)
     Xrec = np.tile(rec_img, reps=reps)
+    Xrec = np.squeeze(Xrec)
 
     numerator = np.abs(Xpert_rec - Xrec)
+    # Dirty hack to make this work with 3-channel images
+    numerator_3ch = np.repeat(numerator[:, :, :, np.newaxis], 3, axis=-1)
     denominator = np.abs(Xpert - Xinput)
     denominator[denominator == 0] = 1  # to avoid zero-division
-    influences = numerator / denominator
+    influences = numerator_3ch / denominator
     influences = influences.astype('int')
 
     influence_map = np.mean(numerator, axis=0).astype('int')

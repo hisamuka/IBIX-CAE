@@ -1,26 +1,27 @@
 import argparse
 from enum import Enum
+from pathlib import Path
 from typing import List
 
-from keras.models import load_model
+import SimpleITK as sitk
+# from keras.models import load_model
 import matplotlib.pyplot as plt
-from magicgui import magicgui
 import napari
-from napari.types import LayerDataTuple, ImageData
 import numpy as np
-from pathlib import Path
+from magicgui import magicgui
+from napari.types import LayerDataTuple, ImageData
+from qtpy import QtWidgets
 from skimage import io
 
-from qtpy import QtWidgets
-
+# from reconstruction.reconstruction import reconstruct_image
+from pytorch_model import load_model, reconstruct_image
 from reconstruction import mapping
-from reconstruction.reconstruction import reconstruct_image
-from reconstruction import util
 
 
 class MappingDirection(Enum):
     INPUT_2_RECONSTRUCTION = 'input --> reconstruction'
     RECONSTRUCTION_2_INPUT = 'reconstruction --> input'
+
 
 class LayerName(Enum):
     INPUT_IMAGE = 'input image'
@@ -112,12 +113,16 @@ def forward_mapping(viewer: napari.Viewer, n_perturbations=100, save_aux_images=
     markers = viewer.layers[LayerName.INPUT_MARKERS.value].data
 
     print('***** Forward Mapping *****')
-    influence_map = mapping.forward_mapping(img, rec_img, markers, n_perturbations, model, save_aux_images)
+    try:
+        influence_map = mapping.forward_mapping(img, rec_img, markers, n_perturbations, model, save_aux_images)
+    except Exception as err:
+        print(err)
+        raise err
 
     # util.mix_image_heatmap(img, influence_map, 'magma')
 
     return (influence_map, {'name': LayerName.FWD_INFLUENCE.value,
-                             'colormap': 'magma', 'blending': 'translucent'}, 'image')
+                            'colormap': 'magma', 'blending': 'translucent'}, 'image')
 
 
 @magicgui(call_button='Backward Mapping',
@@ -171,27 +176,39 @@ if __name__ == '__main__':
 
     with napari.gui_qt():
         viewer = napari.Viewer()
-
-        input_image = io.imread(args.input_image)
-
+        print(args.input_image)
+        # input_image = io.imread(args.input_image)
+        print("Reading image")
+        input_image = sitk.ReadImage(args.input_image)
+        print("Converting image")
+        input_image = sitk.GetArrayFromImage(input_image)
+        input_image = input_image[input_image.shape[0] // 8]
 
         viewer.add_image(input_image, name=LayerName.INPUT_IMAGE.value)
 
-        blank = np.zeros(input_image.shape, dtype=np.int)
+        blank = np.zeros(input_image.shape[:-1], dtype=np.int)
         napari_colors = build_colors_from_colormap(cmap_name='Set1')
         viewer.add_labels(blank.copy(), name=LayerName.INPUT_MARKERS.value, color=napari_colors)
 
+        print("Loading Model")
         model = load_model(args.model)
-        rec_img = reconstruct_image(input_image, model)
+        print("Reconstructing")
+        try:
+            rec_img = reconstruct_image(input_image, model)
+        except Exception as err:
+            print(err)
+            raise err
+        print("Adding Output")
         viewer.add_image(rec_img, name=LayerName.RECONSTRUCTION.value)
 
         viewer.window.add_dock_widget(image_filepicker, area='left')
-        # viewer.window.add_dock_widget(reconstruct, area='left')
+        viewer.window.add_dock_widget(reconstruct, area='left')
         viewer.window.add_dock_widget([QtWidgets.QLabel('Forward Mapping'), forward_mapping.native], area='left')
         viewer.window.add_dock_widget([QtWidgets.QLabel('Backward Mapping'), backward_mapping.native], area='left')
-        viewer.window.add_dock_widget([QtWidgets.QLabel('Backward Mapping by Superpixels'), backward_mapping_superpixels.native], area='left')
+        viewer.window.add_dock_widget(
+            [QtWidgets.QLabel('Backward Mapping by Superpixels'), backward_mapping_superpixels.native], area='left')
 
-        reconstruct(viewer.layers[LayerName.INPUT_IMAGE.value].data)
+        # reconstruct(viewer.layers[LayerName.INPUT_IMAGE.value].data)
 
         viewer.add_labels(blank.copy(), name=LayerName.OUTPUT_MARKERS.value, color=napari_colors)
 
