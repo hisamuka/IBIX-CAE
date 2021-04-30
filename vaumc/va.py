@@ -123,7 +123,7 @@ def forward_mapping(viewer: napari.Viewer, n_perturbations=100, save_aux_images=
 @magicgui(call_button='Backward Mapping',
           n_perturbations={'label': 'num. perturbations'},
           window_size={'label': 'window size'})
-def backward_mapping(viewer: napari.Viewer, window_size=10, stride=5, n_perturbations=100) -> napari.types.LayerDataTuple:
+def backward_mapping_by_window_sliding(viewer: napari.Viewer, window_size=10, stride=5, n_perturbations=100) -> napari.types.LayerDataTuple:
     global model
 
     img = viewer.layers[LayerName.INPUT_IMAGE.value].data
@@ -131,7 +131,7 @@ def backward_mapping(viewer: napari.Viewer, window_size=10, stride=5, n_perturba
     markers = viewer.layers[LayerName.OUTPUT_MARKERS.value].data
 
     print('***** Inverse Mapping *****')
-    influence_map = mapping.backward_mapping(img, rec_img, markers, window_size, stride, n_perturbations, model)
+    influence_map = mapping.backward_mapping_by_window_sliding(img, rec_img, markers, window_size, stride, n_perturbations, model)
 
     return (influence_map, {'name': LayerName.BWD_INFLUENCE.value,
                              'colormap': 'magma'}, 'image')
@@ -141,7 +141,8 @@ def backward_mapping(viewer: napari.Viewer, window_size=10, stride=5, n_perturba
           n_superpixels={'label': 'num. superpixels'},
           compactness={'label': 'compactness'},
           n_perturbations={'label': 'num. perturbations'})
-def backward_mapping_superpixels(viewer: napari.Viewer, n_superpixels=100, compactness=0.1, n_perturbations=100) -> List[napari.types.LayerDataTuple]:
+def backward_mapping(viewer: napari.Viewer, n_superpixels=100, compactness=0.1, n_perturbations=100,
+                                 multi_scale_optimization=True) -> List[napari.types.LayerDataTuple]:
     global model
 
     img = viewer.layers[LayerName.INPUT_IMAGE.value].data
@@ -149,8 +150,8 @@ def backward_mapping_superpixels(viewer: napari.Viewer, n_superpixels=100, compa
     markers = viewer.layers[LayerName.OUTPUT_MARKERS.value].data
 
     print('***** Inverse Mapping by Superpixels *****')
-    influence_map, superpixels = mapping.backward_mapping_by_superpixels(img, rec_img, markers, n_superpixels, compactness,
-                                                                         n_perturbations, model)
+    influence_map, superpixels = mapping.backward_mapping(img, rec_img, markers, n_superpixels, compactness,
+                                                          n_perturbations, model, multi_scale_optimization)
 
     layers = [
         (superpixels, {'name': LayerName.INPUT_SUPERPIXELS.value}, 'labels'),
@@ -188,12 +189,12 @@ if __name__ == '__main__':
         viewer.window.add_dock_widget(image_filepicker, area='left')
         # viewer.window.add_dock_widget(reconstruct, area='left')
         viewer.window.add_dock_widget([QtWidgets.QLabel('Forward Mapping'), forward_mapping.native], area='left')
+        viewer.window.add_dock_widget([QtWidgets.QLabel('Backward Mapping by Window Sliding'), backward_mapping_by_window_sliding.native], area='left')
         viewer.window.add_dock_widget([QtWidgets.QLabel('Backward Mapping'), backward_mapping.native], area='left')
-        viewer.window.add_dock_widget([QtWidgets.QLabel('Backward Mapping by Superpixels'), backward_mapping_superpixels.native], area='left')
 
         reconstruct(viewer.layers[LayerName.INPUT_IMAGE.value].data)
 
         viewer.add_labels(blank.copy(), name=LayerName.OUTPUT_MARKERS.value, color=napari_colors)
 
         # I couldn't set the label contour from the own LayerType
-        backward_mapping_superpixels.called.connect(lambda event: set_layer_contour(viewer, LayerName.INPUT_SUPERPIXELS.value, 1))
+        backward_mapping.called.connect(lambda event: set_layer_contour(viewer, LayerName.INPUT_SUPERPIXELS.value, 1))

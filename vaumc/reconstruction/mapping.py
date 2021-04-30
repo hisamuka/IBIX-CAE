@@ -60,7 +60,7 @@ def forward_mapping(input_img, rec_img, markers, n_perturbations, model, save_au
     return influence_map
 
 
-def backward_mapping(input_img, rec_img, markers, window_size, stride, n_perturbations, model):
+def backward_mapping_by_window_sliding(input_img, rec_img, markers, window_size, stride, n_perturbations, model):
     markers_bool = markers != 0
     influence_map = np.zeros(input_img.shape)
     ysize, xsize = input_img.shape[:2]
@@ -101,10 +101,25 @@ def _process_backward_mapping_for_single_superpixel(influence_maps, superpixels,
     influence_map_label_ref[mask_bool] = mean_value
 
 
-def backward_mapping_by_superpixels(input_img, rec_img, markers, n_superpixels, compactness, n_perturbations, model):
-    markers_bool = markers != 0
-    superpixels = slic(input_img, n_segments=n_superpixels, compactness=compactness)
+def backward_mapping_by_superpixels(input_img, rec_img, markers, n_superpixels, compactness, n_perturbations, model,
+                                    mask_for_superpixels=None):
+    print('===> backward_mapping_by_superpixels')
 
+    ### strategy that extracts superpixels inside a mask (if passed)
+    if mask_for_superpixels is None:
+        superpixels = slic(input_img, n_segments=n_superpixels, compactness=compactness)
+    else:
+        superpixels = slic(input_img, n_segments=n_superpixels, compactness=compactness, mask=mask_for_superpixels)
+
+    ### strategy that crops the original superpixels map acording to a mask (if passed)
+    # superpixels = slic(input_img, n_segments=n_superpixels, compactness=compactness)
+    # if mask_for_superpixels is not None:
+    #     superpixels[~mask_for_superpixels] = 0
+    #
+    #     from skimage.segmentation import relabel_sequential
+    #     superpixels, _, _ = relabel_sequential(superpixels)
+
+    markers_bool = markers != 0
     n_superpixels = superpixels.max()
     influence_maps = np.zeros(tuple([n_superpixels] + list(input_img.shape)))
     print(influence_maps.shape)
@@ -118,3 +133,23 @@ def backward_mapping_by_superpixels(input_img, rec_img, markers, n_superpixels, 
     print(f'FINISHED - backward_mapping_by_superpixels')
 
     return influence_map, superpixels
+
+
+def backward_mapping(input_img, rec_img, markers, n_superpixels, compactness, n_perturbations, model,
+                     multiscale=False):
+    if multiscale:
+        print("===> FIRST SCALE")
+        n_superpixels_large_scale = int(max(10, n_superpixels * 0.1))
+        print(n_superpixels_large_scale)
+        influence_map_large_scale, superpixels_large_scale = backward_mapping_by_superpixels(input_img, rec_img, markers,
+                                                                       n_superpixels_large_scale, compactness,
+                                                                       n_perturbations, model)
+        # return influence_map_large_scale, superpixels_large_scale
+        print("===> SECOND SCALE")
+
+        mask_for_superpixels = influence_map_large_scale != 0
+    else:
+        mask_for_superpixels = None
+
+    return backward_mapping_by_superpixels(input_img, rec_img, markers, n_superpixels, compactness,
+                                           n_perturbations, model, mask_for_superpixels)
