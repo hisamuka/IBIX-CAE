@@ -229,7 +229,6 @@ def load_model(path: Union[str, Path]) -> torch.nn.Module:
     has_cuda = torch.cuda.is_available()
     print(f"Has_CUDA = {has_cuda}")
     model = P2PNet()
-    print("Loading from state dict")
     try:
         model.load_state_dict(torch.load(path))
         if has_cuda:
@@ -237,9 +236,7 @@ def load_model(path: Union[str, Path]) -> torch.nn.Module:
     except Exception as err:
         print(err)
         raise err
-    print("Setting Eval mode")
     model.eval()
-    print("Returning model")
     return model
 
 
@@ -267,7 +264,6 @@ def reconstruct_image(image: np.ndarray, model: torch.nn.Module) -> np.ndarray:
     divider_batch = np.squeeze(divider_batch)
 
     try:
-        print("Predicting")
         t = torch.from_numpy(image_batch).to("cuda" if has_cuda else "cpu")
         p = model(t)
     except Exception as err:
@@ -280,10 +276,8 @@ def reconstruct_image(image: np.ndarray, model: torch.nn.Module) -> np.ndarray:
         p = np.squeeze(p.detach().numpy())
     p = p.reshape(prediction_batch.shape)
 
-    print("Combining predictions")
     for i in range(prediction_batch.shape[0]):
         for j in range(prediction_batch.shape[1]):
-            print(f"\t({i}, {j})", end='\r')
             # Any changes made to prediction_batch also end up in prediction
             prediction_batch[i, j] += p[i, j]
             divider_batch[i, j] += 1
