@@ -232,6 +232,8 @@ def load_model(path: Union[str, Path]) -> torch.nn.Module:
     print("Loading from state dict")
     try:
         model.load_state_dict(torch.load(path))
+        if has_cuda:
+            model.to("cuda")
     except Exception as err:
         print(err)
         raise err
@@ -266,13 +268,16 @@ def reconstruct_image(image: np.ndarray, model: torch.nn.Module) -> np.ndarray:
 
     try:
         print("Predicting")
-        t = torch.from_numpy(image_batch).to("cpu" if has_cuda else "cpu")
+        t = torch.from_numpy(image_batch).to("cuda" if has_cuda else "cpu")
         p = model(t)
     except Exception as err:
         print(err)
         raise err
 
-    p = np.squeeze(p.detach().numpy())
+    if has_cuda:
+        p = np.squeeze(p.cpu().detach().numpy())
+    else:
+        p = np.squeeze(p.detach().numpy())
     p = p.reshape(prediction_batch.shape)
 
     print("Combining predictions")
