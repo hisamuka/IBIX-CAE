@@ -4,6 +4,7 @@ import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
+from skimage.color import gray2rgb
 from skimage import io
 
 
@@ -71,12 +72,22 @@ def crop(X, shape):
 
 
 def get_colors(cmap_name, n_colors):
-    list(plt.get_cmap(cmap_name, n_colors).colors)
+    return plt.get_cmap(cmap_name, n_colors).colors
 
 
 def mix_image_heatmap(img, heatmap, cmap_name):
-    max_range = normalization_value(img)  # e.g., 255
-    n_colors = max_range + 1  # e.g., 255 + 1
+    max_range = normalization_value(img)
 
-    print(heatmap)
-    print(max_range)
+    n_colors = heatmap.max() + 1
+    cm = plt.get_cmap(cmap_name, n_colors)
+    colored_heatmap = cm(heatmap)  # rgba
+    colored_heatmap = colored_heatmap[:,:,:3] # rgb
+    colored_heatmap *= max_range
+    colored_heatmap = colored_heatmap.astype('int')
+
+    color_img = gray2rgb(img)
+    heatmap_norm = gray2rgb(heatmap) / (heatmap.max() - heatmap.min())
+
+    out_img = color_img * (1.0 - heatmap_norm) + colored_heatmap * heatmap_norm
+
+    return out_img

@@ -6,6 +6,7 @@ from keras.models import load_model
 import matplotlib.pyplot as plt
 from magicgui import magicgui
 import napari
+from napari.layers import Image
 from napari.types import LayerDataTuple, ImageData
 import numpy as np
 from pathlib import Path
@@ -113,11 +114,11 @@ def forward_mapping(viewer: napari.Viewer, n_perturbations=100, save_aux_images=
 
     print('***** Forward Mapping *****')
     influence_map = mapping.forward_mapping(img, rec_img, markers, n_perturbations, model, save_aux_images)
+    rec_img_with_influences = util.mix_image_heatmap(rec_img, influence_map, 'magma')
 
-    # util.mix_image_heatmap(img, influence_map, 'magma')
-
-    return (influence_map, {'name': LayerName.FWD_INFLUENCE.value,
-                             'colormap': 'magma', 'blending': 'translucent'}, 'image')
+    # we return a `napari.types.LayerDataTuple` instead of an `Image` because the former updates
+    # an existent layer
+    return (rec_img_with_influences.astype(np.uint8), {'name': LayerName.FWD_INFLUENCE.value}, 'image')
 
 
 @magicgui(call_button='Backward Mapping',
@@ -152,10 +153,12 @@ def backward_mapping(viewer: napari.Viewer, n_superpixels=100, compactness=0.1, 
     print('***** Inverse Mapping by Superpixels *****')
     influence_map, superpixels = mapping.backward_mapping(img, rec_img, markers, n_superpixels, compactness,
                                                           n_perturbations, model, multi_scale_optimization)
+    img_with_influences = util.mix_image_heatmap(img, influence_map, 'magma')
+
 
     layers = [
         (superpixels, {'name': LayerName.INPUT_SUPERPIXELS.value}, 'labels'),
-        (influence_map, {'name': LayerName.BWD_INFLUENCE.value, 'colormap': 'magma'}, 'image')
+        (img_with_influences.astype(np.uint8), {'name': LayerName.BWD_INFLUENCE.value}, 'image')
     ]
 
     return layers
@@ -189,7 +192,7 @@ if __name__ == '__main__':
         viewer.window.add_dock_widget(image_filepicker, area='left')
         # viewer.window.add_dock_widget(reconstruct, area='left')
         viewer.window.add_dock_widget([QtWidgets.QLabel('Forward Mapping'), forward_mapping.native], area='left')
-        viewer.window.add_dock_widget([QtWidgets.QLabel('Backward Mapping by Window Sliding'), backward_mapping_by_window_sliding.native], area='left')
+        # viewer.window.add_dock_widget([QtWidgets.QLabel('Backward Mapping by Window Sliding'), backward_mapping_by_window_sliding.native], area='left')
         viewer.window.add_dock_widget([QtWidgets.QLabel('Backward Mapping'), backward_mapping.native], area='left')
 
         reconstruct(viewer.layers[LayerName.INPUT_IMAGE.value].data)
