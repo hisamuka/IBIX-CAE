@@ -1,3 +1,4 @@
+joblib
 keras
 matplotlib
 napari[all]

@@ -4,6 +4,7 @@ from skimage.segmentation import slic
 
 from pytorch_model import reconstruct_image_set
 from .util import normalization_value
+from joblib import Parallel, delayed
 
 
 def forward_mapping(input_img, rec_img, markers, n_perturbations, model, save_aux_images=False):
@@ -19,6 +20,7 @@ def forward_mapping(input_img, rec_img, markers, n_perturbations, model, save_au
     Xpert = np.zeros(shape, dtype=input_img.dtype)
 
     for i, pert in enumerate(pertubations):
+        pert = pertubations[i]
         noise_img = np.array(input_img).astype('float')
         noise_img[roi] += pert
         noise_img[noise_img < 0] = 0
@@ -60,8 +62,8 @@ def forward_mapping(input_img, rec_img, markers, n_perturbations, model, save_au
     return influence_map
 
 
-def backward_mapping(input_img, rec_img, markers, window_size, stride, n_perturbations, model):
-    markers_bin = markers != 0
+def backward_mapping_by_window_sliding(input_img, rec_img, markers, window_size, stride, n_perturbations, model):
+    markers_bool = markers != 0
     influence_map = np.zeros(input_img.shape)
     ysize, xsize = input_img.shape[:2]
 
@@ -78,7 +80,7 @@ def backward_mapping(input_img, rec_img, markers, window_size, stride, n_perturb
             window_mask[y0:y1, x0:x1] = 1
 
             direct_influence_map = forward_mapping(input_img, rec_img, window_mask, n_perturbations, model, save_aux_images=False)
-            mean_value = np.mean(direct_influence_map[markers_bin])
+            mean_value = np.mean(direct_influence_map[markers_bool])
             influence_map[y0:y1+1, x0:x1+1] += mean_value
             print(y0, y1, x0, x1, mean_value)
 
@@ -87,26 +89,69 @@ def backward_mapping(input_img, rec_img, markers, window_size, stride, n_perturb
     return influence_map
 
 
-def backward_mapping_by_superpixels(input_img, rec_img, markers, n_superpixels, compactness, n_perturbations, model):
-    markers_bin = markers != 0
+def _process_backward_mapping_for_single_superpixel(influence_maps, superpixels, label, input_img, rec_img,
+                                                    n_perturbations, model, markers_bool):
+    print(f'processing backward mapping - superpixel {label}')
+    mask_bool = superpixels == label
+    mask = mask_bool.astype(np.int)
 
-    superpixels = slic(input_img, n_segments=n_superpixels, compactness=compactness)
-    influence_map = np.zeros(input_img.shape)
+    direct_influence_map = forward_mapping(input_img, rec_img, mask, n_perturbations, model, save_aux_images=False)
+    mean_value = np.mean(direct_influence_map[markers_bool])
 
+    # [i] ==> influence map for the label i + 1
+    influence_map_label_ref = influence_maps[label - 1]
+    influence_map_label_ref[mask_bool] = mean_value
+
+
+def backward_mapping_by_superpixels(input_img, rec_img, markers, n_superpixels, compactness, n_perturbations, model,
+                                    mask_for_superpixels=None):
+    print('===> backward_mapping_by_superpixels')
+
+    ### strategy that extracts superpixels inside a mask (if passed)
+    if mask_for_superpixels is None:
+        superpixels = slic(input_img, n_segments=n_superpixels, compactness=compactness)
+    else:
+        superpixels = slic(input_img, n_segments=n_superpixels, compactness=compactness, mask=mask_for_superpixels)
+
+    ### strategy that crops the original superpixels map acording to a mask (if passed)
+    # superpixels = slic(input_img, n_segments=n_superpixels, compactness=compactness)
+    # if mask_for_superpixels is not None:
+    #     superpixels[~mask_for_superpixels] = 0
+    #
+    #     from skimage.segmentation import relabel_sequential
+    #     superpixels, _, _ = relabel_sequential(superpixels)
+
+    markers_bool = markers != 0
     n_superpixels = superpixels.max()
-    print(f'n_superpixels = {n_superpixels}')
+    influence_maps = np.zeros(tuple([n_superpixels] + list(input_img.shape)))
+    print(influence_maps.shape)
 
-    for label in range(1, n_superpixels + 1):
-            print(f'** label = {label}')
+    Parallel(n_jobs=-1, require='sharedmem')(delayed(_process_backward_mapping_for_single_superpixel)
+                                             (influence_maps, superpixels, label, input_img, rec_img,
+                                              n_perturbations, model, markers_bool)
+                                             for label in range(1, n_superpixels + 1))
 
-            mask_bool = superpixels == label
-            mask = mask_bool.astype(np.int)
-
-            direct_influence_map = forward_mapping(input_img, rec_img, mask, n_perturbations, model, save_aux_images=False)
-            mean_value = np.mean(direct_influence_map[markers_bin])
-            influence_map[mask_bool] += mean_value
-            print(label, mean_value)
-
-    influence_map = influence_map.astype(np.int)
+    influence_map = influence_maps.sum(axis=0).astype(np.int)
+    print(f'FINISHED - backward_mapping_by_superpixels')
 
     return influence_map, superpixels
+
+
+def backward_mapping(input_img, rec_img, markers, n_superpixels, compactness, n_perturbations, model,
+                     multiscale=False):
+    if multiscale:
+        print("===> FIRST SCALE")
+        n_superpixels_large_scale = int(max(10, n_superpixels * 0.1))
+        print(n_superpixels_large_scale)
+        influence_map_large_scale, superpixels_large_scale = backward_mapping_by_superpixels(input_img, rec_img, markers,
+                                                                       n_superpixels_large_scale, compactness,
+                                                                       n_perturbations, model)
+        # return influence_map_large_scale, superpixels_large_scale
+        print("===> SECOND SCALE")
+
+        mask_for_superpixels = influence_map_large_scale != 0
+    else:
+        mask_for_superpixels = None
+
+    return backward_mapping_by_superpixels(input_img, rec_img, markers, n_superpixels, compactness,
+                                           n_perturbations, model, mask_for_superpixels)
