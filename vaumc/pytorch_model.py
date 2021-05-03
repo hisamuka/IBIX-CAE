@@ -243,7 +243,7 @@ def load_model(path: Union[str, Path]) -> torch.nn.Module:
 def reconstruct_image(image: np.ndarray, model: torch.nn.Module) -> np.ndarray:
     # Pix2Pix assumes 256x256 input, so we do too
     input_size = 256
-    step_size = (image.shape[0] - input_size) // 16
+    step_size = (image.shape[0] - input_size) // 1
     has_cuda = torch.cuda.is_available()
 
     prediction = np.zeros((image.shape[0], image.shape[1]))
@@ -289,7 +289,7 @@ def reconstruct_image(image: np.ndarray, model: torch.nn.Module) -> np.ndarray:
 def reconstruct_image_set(image_set: np.ndarray, model: torch.nn.Module) -> np.ndarray:
     # Assume a [batch, c, h, w] order
     prediction = np.zeros((image_set.shape[0], image_set.shape[1], image_set.shape[2]))
-
+    print(f"{image_set.shape[0]} entries")
     for b in range(image_set.shape[0]):
         print(f"{b} / {image_set.shape[0]}")
         prediction[b] = reconstruct_image(image_set[b], model)

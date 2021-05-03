@@ -8,14 +8,11 @@ from .util import normalization_value
 
 def forward_mapping(input_img, rec_img, markers, n_perturbations, model, save_aux_images=False):
     roi = markers != 0
-    print(roi.shape)
-    print(input_img.shape)
 
     max_range = int(normalization_value(input_img))  # e.g., 255 in 8-bit image
 
     pertubations = np.arange(-n_perturbations, n_perturbations + 1, 2)[:n_perturbations]
     shape = tuple([n_perturbations] + list(input_img.shape))  # (n_perturbations, ysize, xsize)
-    print(shape)
 
     # creates a numpy array with `n_pertubation` repetitions of the input_image
     # X.shape ==> (n_pertubation, input_image.shape)
@@ -29,6 +26,7 @@ def forward_mapping(input_img, rec_img, markers, n_perturbations, model, save_au
 
         Xpert[i] = noise_img.astype('int')
 
+    print("Reconstructing...")
     Xpert_rec = reconstruct_image_set(Xpert, model)
 
     reps = tuple([n_perturbations] + [1] * input_img.ndim)
