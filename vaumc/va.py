@@ -6,20 +6,16 @@ from typing import List
 import SimpleITK as sitk
 # from keras.models import load_model
 import matplotlib.pyplot as plt
-from magicgui import magicgui
 import napari
-from napari.layers import Image
-from napari.types import LayerDataTuple, ImageData
 import numpy as np
-from pathlib import Path
-from skimage import io
-
+from magicgui import magicgui
+from napari.types import LayerDataTuple, ImageData
 from qtpy import QtWidgets
+from skimage import io
 
 # from reconstruction.reconstruction import reconstruct_image
 from pytorch_model import load_model, reconstruct_image
 from reconstruction import mapping
-from reconstruction.reconstruction import reconstruct_image
 from reconstruction import util
 
 
@@ -38,14 +34,12 @@ class LayerName(Enum):
     INPUT_SUPERPIXELS = 'input superpixels'
 
 
-
-
 model = None
 
 
 def build_argparse():
     prog_desc = \
-'''
+        '''
 Visual Analytics Tool for Exploratory Analysis on Unsup. Neural Nets.
 '''
     parser = argparse.ArgumentParser(description=prog_desc, formatter_class=argparse.RawTextHelpFormatter)
@@ -79,7 +73,6 @@ def build_colors_from_colormap(cmap_name='Set3'):
         napari_colors[i + 1] = tuple(list(RGB) + [1.0])  # RGBA
 
     return napari_colors
-
 
 
 @magicgui(call_button='Load Input Image', filename={"filter": "Images (*.jpg *.jpeg *.png)"})
@@ -129,7 +122,8 @@ def forward_mapping(viewer: napari.Viewer, n_perturbations=100, save_aux_images=
 @magicgui(call_button='Backward Mapping',
           n_perturbations={'label': 'num. perturbations'},
           window_size={'label': 'window size'})
-def backward_mapping_by_window_sliding(viewer: napari.Viewer, window_size=10, stride=5, n_perturbations=100) -> napari.types.LayerDataTuple:
+def backward_mapping_by_window_sliding(viewer: napari.Viewer, window_size=10, stride=5,
+                                       n_perturbations=100) -> napari.types.LayerDataTuple:
     global model
 
     img = viewer.layers[LayerName.INPUT_IMAGE.value].data
@@ -137,10 +131,11 @@ def backward_mapping_by_window_sliding(viewer: napari.Viewer, window_size=10, st
     markers = viewer.layers[LayerName.OUTPUT_MARKERS.value].data
 
     print('***** Inverse Mapping *****')
-    influence_map = mapping.backward_mapping_by_window_sliding(img, rec_img, markers, window_size, stride, n_perturbations, model)
+    influence_map = mapping.backward_mapping_by_window_sliding(img, rec_img, markers, window_size, stride,
+                                                               n_perturbations, model)
 
     return (influence_map, {'name': LayerName.BWD_INFLUENCE.value,
-                             'colormap': 'magma'}, 'image')
+                            'colormap': 'magma'}, 'image')
 
 
 @magicgui(call_button='Backward Mapping',
@@ -148,7 +143,7 @@ def backward_mapping_by_window_sliding(viewer: napari.Viewer, window_size=10, st
           compactness={'label': 'compactness'},
           n_perturbations={'label': 'num. perturbations'})
 def backward_mapping(viewer: napari.Viewer, n_superpixels=100, compactness=0.1, n_perturbations=100,
-                                 multi_scale_optimization=True) -> List[napari.types.LayerDataTuple]:
+                     multi_scale_optimization=True) -> List[napari.types.LayerDataTuple]:
     global model
 
     img = viewer.layers[LayerName.INPUT_IMAGE.value].data
@@ -159,7 +154,6 @@ def backward_mapping(viewer: napari.Viewer, n_superpixels=100, compactness=0.1, 
     influence_map, superpixels = mapping.backward_mapping(img, rec_img, markers, n_superpixels, compactness,
                                                           n_perturbations, model, multi_scale_optimization)
     img_with_influences = util.mix_image_heatmap(img, influence_map, 'magma')
-
 
     layers = [
         (superpixels, {'name': LayerName.INPUT_SUPERPIXELS.value}, 'labels'),
