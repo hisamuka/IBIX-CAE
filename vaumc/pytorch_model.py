@@ -244,6 +244,8 @@ def reconstruct_image(image: np.ndarray, model: torch.nn.Module) -> np.ndarray:
     # Pix2Pix assumes 256x256 input, so we do too
     input_size = 256
     step_size = (image.shape[0] - input_size) // 1
+    if step_size < 1:
+        step_size = 1
     has_cuda = torch.cuda.is_available()
 
     prediction = np.zeros((image.shape[0], image.shape[1]))
@@ -257,8 +259,12 @@ def reconstruct_image(image: np.ndarray, model: torch.nn.Module) -> np.ndarray:
 
     # Do some reshaping to turn the batch shape into (n, c, x, y)
     image_batch = np.squeeze(image_batch)
-    image_batch = image_batch.reshape((image_batch.shape[0] * image_batch.shape[1],) + image_batch.shape[2:])
-    image_batch = np.moveaxis(image_batch, -1, 1)
+    if image_batch.ndim > 3:
+        image_batch = image_batch.reshape((image_batch.shape[0] * image_batch.shape[1],) + image_batch.shape[2:])
+        image_batch = np.moveaxis(image_batch, -1, 1)
+    else:
+        image_batch = np.moveaxis(image_batch, -1, 0)
+        image_batch = np.expand_dims(image_batch, 0)
 
     prediction_batch = np.squeeze(prediction_batch)
     divider_batch = np.squeeze(divider_batch)

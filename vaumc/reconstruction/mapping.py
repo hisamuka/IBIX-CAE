@@ -1,64 +1,73 @@
 import numpy as np
-from skimage import io
+from joblib import Parallel, delayed
 from skimage.segmentation import slic
 
 from pytorch_model import reconstruct_image_set
-from .util import normalization_value
-from joblib import Parallel, delayed
 
 
 def forward_mapping(input_img, rec_img, markers, n_perturbations, model, save_aux_images=False):
     roi = markers != 0
 
-    max_range = int(normalization_value(input_img))  # e.g., 255 in 8-bit image
+    # max_range = int(normalization_value(input_img))  # e.g., 255 in 8-bit image
 
-    pertubations = np.arange(-n_perturbations, n_perturbations + 1, 2)[:n_perturbations]
+    # Our model ranges from -1 to 1, we need to divide that range into the required steps
+    perturbation_step = 2 / n_perturbations
+
+    perturbations = np.arange(-1.0, 1.0, perturbation_step)[:n_perturbations]
     shape = tuple([n_perturbations] + list(input_img.shape))  # (n_perturbations, ysize, xsize)
 
     # creates a numpy array with `n_pertubation` repetitions of the input_image
     # X.shape ==> (n_pertubation, input_image.shape)
     Xpert = np.zeros(shape, dtype=input_img.dtype)
 
-    for i, pert in enumerate(pertubations):
-        pert = pertubations[i]
+    for i, pert in enumerate(perturbations):
+        pert = perturbations[i]
         noise_img = np.array(input_img).astype('float')
         noise_img[roi] += pert
-        noise_img[noise_img < 0] = 0
-        noise_img[noise_img > max_range] = max_range
+        noise_img[noise_img < -1.0] = -1.0
+        noise_img[noise_img > 1.0] = 1.0
 
-        Xpert[i] = noise_img.astype('int')
+        Xpert[i] = noise_img
 
     print("Reconstructing...")
-    Xpert_rec = reconstruct_image_set(Xpert, model)
+    try:
+        Xpert_rec = reconstruct_image_set(Xpert, model)
+    except Exception as err:
+        print(err)
+        raise err
 
+    print("Reps")
     reps = tuple([n_perturbations] + [1] * input_img.ndim)
-    Xinput = np.tile(input_img, reps=reps)
+    # Xinput = np.tile(input_img, reps=reps)
     Xrec = np.tile(rec_img, reps=reps)
     Xrec = np.squeeze(Xrec)
 
+    print("Absolute Error")
     numerator = np.abs(Xpert_rec - Xrec)
     # Dirty hack to make this work with 3-channel images
-    numerator_3ch = np.repeat(numerator[:, :, :, np.newaxis], 3, axis=-1)
-    denominator = np.abs(Xpert - Xinput)
-    denominator[denominator == 0] = 1  # to avoid zero-division
-    influences = numerator_3ch / denominator
-    influences = influences.astype('int')
+    # numerator_3ch = np.repeat(numerator[:, :, :, np.newaxis], 3, axis=-1)
+    # denominator = np.abs(Xpert - Xinput)
+    # denominator[denominator == 0] = 1  # to avoid zero-division
+    # influences = numerator_3ch / denominator
+    # influences = influences.astype('int')
 
-    influence_map = np.mean(numerator, axis=0).astype('int')
+    print("Influence map")
+    influence_map = np.mean(numerator, axis=0)
 
-    if save_aux_images:
-        import os
-        if not os.path.exists('./out'):
-            os.makedirs('./out')
+    # if save_aux_images:
+    #     import os
+    #     if not os.path.exists('./out'):
+    #         os.makedirs('./out')
+    #
+    #     for i in range(n_perturbations):
+    #         print(perturbations[i], denominator[i].max())
+    #         io.imsave(f'out/{i}.png', Xpert[i].astype('uint8'))  # debugging
+    #         io.imsave(f'out/{i}_rec.png', Xpert_rec[i].astype('uint8'))  # debugging
+    #         io.imsave(f'out/{i}_numerator.png', numerator[i].astype('uint8'))  # debugging
+    #         io.imsave(f'out/{i}_denominator.png', denominator[i].astype('uint8'))  # debugging
+    #         io.imsave(f'out/{i}_influence.png', influences[i].astype('uint8'))  # debugging
 
-        for i in range(n_perturbations):
-            print(pertubations[i], denominator[i].max())
-            io.imsave(f'out/{i}.png', Xpert[i].astype('uint8'))  # debugging
-            io.imsave(f'out/{i}_rec.png', Xpert_rec[i].astype('uint8'))  # debugging
-            io.imsave(f'out/{i}_numerator.png', numerator[i].astype('uint8'))  # debugging
-            io.imsave(f'out/{i}_denominator.png', denominator[i].astype('uint8'))  # debugging
-            io.imsave(f'out/{i}_influence.png', influences[i].astype('uint8'))  # debugging
-
+    print("Returning")
     return influence_map
 
 
