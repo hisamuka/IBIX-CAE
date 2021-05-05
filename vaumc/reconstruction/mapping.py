@@ -1,5 +1,6 @@
 import numpy as np
 from joblib import Parallel, delayed
+from skimage import io
 from skimage.segmentation import slic
 
 from pytorch_model import reconstruct_image_set
@@ -118,9 +119,10 @@ def backward_mapping_by_superpixels(input_img, rec_img, markers, n_superpixels, 
 
     ### strategy that extracts superpixels inside a mask (if passed)
     if mask_for_superpixels is None:
-        superpixels = slic(input_img, n_segments=n_superpixels, compactness=compactness)
+        superpixels = slic(input_img[:, :, 2], n_segments=n_superpixels, compactness=compactness)
     else:
-        superpixels = slic(input_img, n_segments=n_superpixels, compactness=compactness, mask=mask_for_superpixels)
+        superpixels = slic(input_img[:, :, 2], n_segments=n_superpixels, compactness=compactness,
+                           mask=mask_for_superpixels)
 
     ### strategy that crops the original superpixels map acording to a mask (if passed)
     # superpixels = slic(input_img, n_segments=n_superpixels, compactness=compactness)
@@ -131,34 +133,41 @@ def backward_mapping_by_superpixels(input_img, rec_img, markers, n_superpixels, 
     #     superpixels, _, _ = relabel_sequential(superpixels)
 
     markers_bool = markers != 0
-    n_superpixels = superpixels.max()
-    influence_maps = np.zeros(tuple([n_superpixels] + list(input_img.shape)))
+    found_superpixels = superpixels.max()
+    print(f"Number of Superpixels: {found_superpixels} (We wanted: {n_superpixels})")
+    influence_maps = np.zeros(tuple([found_superpixels] + list(input_img.shape[:-1])))
     print(influence_maps.shape)
 
     Parallel(n_jobs=-1, require='sharedmem')(delayed(_process_backward_mapping_for_single_superpixel)
                                              (influence_maps, superpixels, label, input_img, rec_img,
                                               n_perturbations, model, markers_bool)
-                                             for label in range(1, n_superpixels + 1))
+                                             for label in range(1, found_superpixels + 1))
 
-    influence_map = influence_maps.sum(axis=0).astype(np.int)
+    influence_map = influence_maps.sum(axis=0)
     print(f'FINISHED - backward_mapping_by_superpixels')
 
     return influence_map, superpixels
 
 
-def backward_mapping(input_img, rec_img, markers, n_superpixels, compactness, n_perturbations, model,
+def backward_mapping(input_img, rec_img, markers, n_superpixels, compactness, n_perturbations, model, first_ratio,
                      multiscale=False):
     if multiscale:
         print("===> FIRST SCALE")
-        n_superpixels_large_scale = int(max(10, n_superpixels * 0.1))
+        n_superpixels_large_scale = int(max(10, n_superpixels * first_ratio))
         print(n_superpixels_large_scale)
-        influence_map_large_scale, superpixels_large_scale = backward_mapping_by_superpixels(input_img, rec_img, markers,
-                                                                       n_superpixels_large_scale, compactness,
-                                                                       n_perturbations, model)
+        influence_map_large_scale, superpixels_large_scale = backward_mapping_by_superpixels(input_img, rec_img,
+                                                                                             markers,
+                                                                                             n_superpixels_large_scale,
+                                                                                             compactness,
+                                                                                             n_perturbations, model)
         # return influence_map_large_scale, superpixels_large_scale
         print("===> SECOND SCALE")
 
         mask_for_superpixels = influence_map_large_scale != 0
+        io.imsave("~/superpixels_mask.png", mask_for_superpixels.astype(np.uint8) * 255)
+        found_superpixels = superpixels_large_scale.max()
+        scaling_factor = 255 / found_superpixels
+        io.imsave("~/superpixels.png", (superpixels_large_scale * scaling_factor).astype(np.uint8))
     else:
         mask_for_superpixels = None
 

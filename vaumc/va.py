@@ -16,7 +16,6 @@ from skimage import io
 # from reconstruction.reconstruction import reconstruct_image
 from pytorch_model import load_model, reconstruct_image
 from reconstruction import mapping
-from reconstruction import util
 
 
 class MappingDirection(Enum):
@@ -153,26 +152,34 @@ def backward_mapping_by_window_sliding(viewer: napari.Viewer, window_size=10, st
           n_superpixels={'label': 'num. superpixels'},
           compactness={'label': 'compactness'},
           n_perturbations={'label': 'num. perturbations'})
-def backward_mapping(viewer: napari.Viewer, n_superpixels=100, compactness=0.1, n_perturbations=100,
+def backward_mapping(viewer: napari.Viewer, n_superpixels=100, compactness=0.1, n_perturbations=100, first_ratio=0.1,
                      multi_scale_optimization=True) -> List[napari.types.LayerDataTuple]:
     global model
 
     img = viewer.layers[LayerName.INPUT_IMAGE.value].data - 1.0
-    rec_img = viewer.layers[LayerName.RECONSTRUCTION.value].data
+    rec_img = viewer.layers[LayerName.RECONSTRUCTION.value].data - 1.0
     markers = viewer.layers[LayerName.OUTPUT_MARKERS.value].data
 
     print('***** Inverse Mapping by Superpixels *****')
     try:
         influence_map, superpixels = mapping.backward_mapping(img, rec_img, markers, n_superpixels, compactness,
-                                                              n_perturbations, model, multi_scale_optimization)
-        img_with_influences = util.mix_image_heatmap(img, influence_map, 'magma')
+                                                              n_perturbations, model, first_ratio,
+                                                              multi_scale_optimization)
+        # img_with_influences = util.mix_image_heatmap(img, influence_map, 'magma')
     except Exception as err:
         print(err)
         raise err
 
     layers = [
         (superpixels, {'name': LayerName.INPUT_SUPERPIXELS.value}, 'labels'),
-        (img_with_influences.astype(np.uint8), {'name': LayerName.BWD_INFLUENCE.value}, 'image')
+        (
+            influence_map,
+            {
+                'name': LayerName.BWD_INFLUENCE.value,
+                "colormap": "magma",
+                "blending": "translucent"
+            },
+            'image')
     ]
 
     return layers
