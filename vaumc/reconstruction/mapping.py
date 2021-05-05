@@ -37,13 +37,11 @@ def forward_mapping(input_img, rec_img, markers, n_perturbations, model, save_au
         print(err)
         raise err
 
-    print("Reps")
     reps = tuple([n_perturbations] + [1] * input_img.ndim)
     # Xinput = np.tile(input_img, reps=reps)
     Xrec = np.tile(rec_img, reps=reps)
     Xrec = np.squeeze(Xrec)
 
-    print("Absolute Error")
     numerator = np.abs(Xpert_rec - Xrec)
     # Dirty hack to make this work with 3-channel images
     # numerator_3ch = np.repeat(numerator[:, :, :, np.newaxis], 3, axis=-1)
@@ -52,7 +50,6 @@ def forward_mapping(input_img, rec_img, markers, n_perturbations, model, save_au
     # influences = numerator_3ch / denominator
     # influences = influences.astype('int')
 
-    print("Influence map")
     influence_map = np.mean(numerator, axis=0)
 
     # if save_aux_images:
@@ -68,7 +65,6 @@ def forward_mapping(input_img, rec_img, markers, n_perturbations, model, save_au
     #         io.imsave(f'out/{i}_denominator.png', denominator[i].astype('uint8'))  # debugging
     #         io.imsave(f'out/{i}_influence.png', influences[i].astype('uint8'))  # debugging
 
-    print("Returning")
     return influence_map
 
 
@@ -136,7 +132,6 @@ def backward_mapping_by_superpixels(input_img, rec_img, markers, n_superpixels, 
     found_superpixels = superpixels.max()
     print(f"Number of Superpixels: {found_superpixels} (We wanted: {n_superpixels})")
     influence_maps = np.zeros(tuple([found_superpixels] + list(input_img.shape[:-1])))
-    print(influence_maps.shape)
 
     Parallel(n_jobs=-1, require='sharedmem')(delayed(_process_backward_mapping_for_single_superpixel)
                                              (influence_maps, superpixels, label, input_img, rec_img,
@@ -154,7 +149,6 @@ def backward_mapping(input_img, rec_img, markers, n_superpixels, compactness, n_
     if multiscale:
         print("===> FIRST SCALE")
         n_superpixels_large_scale = int(max(10, n_superpixels * first_ratio))
-        print(n_superpixels_large_scale)
         influence_map_large_scale, superpixels_large_scale = backward_mapping_by_superpixels(input_img, rec_img,
                                                                                              markers,
                                                                                              n_superpixels_large_scale,
