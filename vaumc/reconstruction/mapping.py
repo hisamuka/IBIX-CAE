@@ -133,10 +133,10 @@ def backward_mapping_by_superpixels(input_img, rec_img, markers, n_superpixels, 
     print(f"Number of Superpixels: {found_superpixels} (We wanted: {n_superpixels})")
     influence_maps = np.zeros(tuple([found_superpixels] + list(input_img.shape[:-1])))
 
-    Parallel(n_jobs=-1, require='sharedmem')(delayed(_process_backward_mapping_for_single_superpixel)
-                                             (influence_maps, superpixels, label, input_img, rec_img,
-                                              n_perturbations, model, markers_bool)
-                                             for label in range(1, found_superpixels + 1))
+    Parallel(n_jobs=2, require='sharedmem')(delayed(_process_backward_mapping_for_single_superpixel)
+                                            (influence_maps, superpixels, label, input_img, rec_img,
+                                             n_perturbations, model, markers_bool)
+                                            for label in range(1, found_superpixels + 1))
 
     influence_map = influence_maps.sum(axis=0)
     print(f'FINISHED - backward_mapping_by_superpixels')

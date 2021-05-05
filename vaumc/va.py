@@ -92,8 +92,6 @@ def image_filepicker(viewer: napari.Viewer, filename=Path()):
 @magicgui(call_button='Reconstruct')
 def reconstruct(img: ImageData) -> napari.types.LayerDataTuple:
     global model
-    print(model)
-
     rec_img = reconstruct_image(img, model)
 
     return (rec_img + 1.0, {'name': LayerName.RECONSTRUCTION.value}, 'image')
@@ -111,12 +109,10 @@ def forward_mapping(viewer: napari.Viewer, n_perturbations=100, save_aux_images=
 
     print('***** Forward Mapping *****')
     influence_map = mapping.forward_mapping(img, rec_img, markers, n_perturbations, model, save_aux_images)
-    print("Mix Heatmap")
     # rec_img_with_influences = util.mix_image_heatmap(rec_img, influence_map, 'magma')
 
     # we return a `napari.types.LayerDataTuple` instead of an `Image` because the former updates
     # an existent layer
-    print("Returning")
 
     return (
         influence_map,
@@ -202,7 +198,7 @@ if __name__ == '__main__':
         input_image = sitk.ReadImage(args.input_image)
         print("Converting image")
         input_image = sitk.GetArrayFromImage(input_image)
-        input_image = input_image[input_image.shape[0] // 8, 112:-112, 112:-112, :]
+        input_image = input_image[input_image.shape[0] // 16, 142:-82, 112:-112, :]
         print(input_image.shape)
 
         viewer.add_image(input_image + 1, name=LayerName.INPUT_IMAGE.value)
