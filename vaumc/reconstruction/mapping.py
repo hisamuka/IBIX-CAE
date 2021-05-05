@@ -157,8 +157,10 @@ def backward_mapping(input_img, rec_img, markers, n_superpixels, compactness, n_
         # return influence_map_large_scale, superpixels_large_scale
         print("===> SECOND SCALE")
 
-        mask_for_superpixels = influence_map_large_scale != 0
+        top_percentile = np.percentile(influence_map_large_scale[influence_map_large_scale > 0], 75)
+        mask_for_superpixels = influence_map_large_scale > top_percentile
         io.imsave("~/superpixels_mask.png", mask_for_superpixels.astype(np.uint8) * 255)
+
         found_superpixels = superpixels_large_scale.max()
         scaling_factor = 255 / found_superpixels
         io.imsave("~/superpixels.png", (superpixels_large_scale * scaling_factor).astype(np.uint8))
