@@ -148,7 +148,7 @@ def backward_mapping_by_window_sliding(viewer: napari.Viewer, window_size=10, st
           n_superpixels={'label': 'num. superpixels'},
           compactness={'label': 'compactness'},
           n_perturbations={'label': 'num. perturbations'})
-def backward_mapping(viewer: napari.Viewer, n_superpixels=100, compactness=0.1, n_perturbations=100, first_ratio=0.1,
+def backward_mapping(viewer: napari.Viewer, n_superpixels=100, compactness=0.1, n_perturbations=100, first_ratio=0.25,
                      multi_scale_optimization=True) -> List[napari.types.LayerDataTuple]:
     global model
 
@@ -198,7 +198,7 @@ if __name__ == '__main__':
         input_image = sitk.ReadImage(args.input_image)
         print("Converting image")
         input_image = sitk.GetArrayFromImage(input_image)
-        input_image = input_image[input_image.shape[0] // 16, 142:-82, 112:-112, :]
+        input_image = input_image[input_image.shape[0] // 8, 122:-102, 112:-112, :]
         print(input_image.shape)
 
         viewer.add_image(input_image + 1, name=LayerName.INPUT_IMAGE.value)

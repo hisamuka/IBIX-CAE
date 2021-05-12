@@ -294,17 +294,15 @@ def reconstruct_image(image: np.ndarray, model: torch.nn.Module) -> np.ndarray:
 
 def reconstruct_image_set(image_set: np.ndarray, model: torch.nn.Module) -> np.ndarray:
     # Assume a [batch, c, h, w] order
-    print(f"{image_set.shape[0]} entries")
-
     has_cuda = torch.cuda.is_available()
+    image_set = np.moveaxis(image_set, -1, 1)
 
     try:
-        t = torch.from_numpy(np.moveaxis(image_set, -1, 1)).to("cuda" if has_cuda else "cpu")
+        t = torch.from_numpy(image_set).to("cuda" if has_cuda else "cpu")
         p = model(t)
     except Exception as err:
         print(err)
         raise err
-
     if has_cuda:
         p = np.squeeze(p.cpu().detach().numpy())
     else:
