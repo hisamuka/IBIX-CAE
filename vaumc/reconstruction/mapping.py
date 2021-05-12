@@ -1,6 +1,5 @@
 import numpy as np
 from joblib import Parallel, delayed
-from skimage import io
 from skimage.segmentation import slic
 
 from pytorch_model import reconstruct_image_set
@@ -156,16 +155,52 @@ def backward_mapping(input_img, rec_img, markers, n_superpixels, compactness, n_
                                                                                              n_perturbations, model)
         # return influence_map_large_scale, superpixels_large_scale
         print("===> SECOND SCALE")
-
+        n_superpixels_mid_scale = int(max(10, n_superpixels * first_ratio * 2))
         top_percentile = np.percentile(influence_map_large_scale[influence_map_large_scale > 0], 75)
-        mask_for_superpixels = influence_map_large_scale > top_percentile
-        io.imsave("~/superpixels_mask.png", mask_for_superpixels.astype(np.uint8) * 255)
+        mid_mask_for_superpixels = influence_map_large_scale > top_percentile
+        influence_map_mid_scale, superpixels_mid_scale = backward_mapping_by_superpixels(
+            input_img,
+            rec_img,
+            markers,
+            n_superpixels_mid_scale,
+            compactness,
+            n_perturbations,
+            model,
+            mid_mask_for_superpixels
+        )
 
-        found_superpixels = superpixels_large_scale.max()
-        scaling_factor = 255 / found_superpixels
-        io.imsave("~/superpixels.png", (superpixels_large_scale * scaling_factor).astype(np.uint8))
+        print("===> THIRD SCALE")
+        top_percentile = np.percentile(influence_map_mid_scale[influence_map_mid_scale > 0], 75)
+        mask_for_superpixels = influence_map_mid_scale > top_percentile
+        influence_map, superpixels = backward_mapping_by_superpixels(
+            input_img,
+            rec_img,
+            markers,
+            n_superpixels,
+            compactness,
+            n_perturbations,
+            model,
+            mask_for_superpixels
+        )
+
+        print("Combining influence maps")
+        influence_map[influence_map == 0] = influence_map_mid_scale[influence_map == 0]
+        influence_map[influence_map == 0] = influence_map_large_scale[influence_map == 0]
+
+        print("Combining superpixels")
+        superpixels[superpixels == 0] = superpixels_mid_scale[superpixels == 0]
+        superpixels[superpixels == 0] = superpixels_large_scale[superpixels == 0]
+
+        return influence_map, superpixels
     else:
         mask_for_superpixels = None
-
-    return backward_mapping_by_superpixels(input_img, rec_img, markers, n_superpixels, compactness,
-                                           n_perturbations, model, mask_for_superpixels)
+        return backward_mapping_by_superpixels(
+            input_img,
+            rec_img,
+            markers,
+            n_superpixels,
+            compactness,
+            n_perturbations,
+            model,
+            mask_for_superpixels
+        )
